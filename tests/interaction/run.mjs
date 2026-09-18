@@ -7,13 +7,14 @@
 // outside, so this drives the app through Playwright instead.
 
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildModels, writeNodesOnlyModel } from '../../scripts/buildModels.mjs';
 import { installBuiltPackages } from '../../scripts/installDev.mjs';
-import { konjugateDir } from '../../scripts/konjugatePaths.mjs';
+import { fintechRoot, konjugateDir } from '../../scripts/konjugatePaths.mjs';
 
 const require = createRequire(join(konjugateDir, 'package.json'));
 const { _electron: electron } = require('playwright');
@@ -297,6 +298,104 @@ try {
         // The example is the model the generator writes: six nodes and the same 55 edges.
         await window.waitForFunction(() => /6 nodes/.test(document.querySelector('.modelStatus').textContent) && /55 relationships/.test(document.querySelector('.modelStatus').textContent), null, { timeout: 15000 });
         console.log('Both reference models are offered in the Examples dialog, and the interbank model loads with its 55 edges.');
+    });
+
+    // --- Scenario 6: the Start window: your data -> scenario -> comparison -> canvas -> export. -------
+    const samplesDirectory = join(fintechRoot, 'packages', 'start', 'samples');
+    const badDirectory = join(scratch, 'bad');
+    await mkdir(badDirectory, { recursive: true });
+    const header = 'institution,cash_and_reserves,loans_and_securities,interbank_assets,deposits_and_other_liabilities,interbank_liabilities,equity\n';
+    await writeFile(join(badDirectory, 'institutions.csv'), `${header}Alpha,10,80,0,90,0,5\nBeta,10,80,0,90,0,10\n`);
+    const exportDirectory = join(scratch, 'export');
+    await mkdir(exportDirectory, { recursive: true });
+    await withApp(nodesOnly.path, async ({ app, window }) => {
+        // Native file and folder dialogs cannot be driven, so the test answers them from a queue.
+        await app.evaluate(({ dialog }) => {
+            globalThis.fintechDialogAnswers = [];
+            dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [globalThis.fintechDialogAnswers.shift()] });
+        });
+        const answer = (path) => app.evaluate((_electron, value) => { globalThis.fintechDialogAnswers.push(value); }, path);
+
+        await window.click('.addonTool[data-addon-id="konjugate.fintech.start"][data-command-id="openStart"]');
+        // Other windows (an example guide, a welcome window) may open around it, so find the launcher by its page.
+        let start;
+        for (let attempt = 0; attempt < 150 && !start; attempt += 1) {
+            start = app.windows().find((candidate) => candidate.url().includes('konjugate.fintech.start'));
+            if (!start) await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        assert.ok(start, 'The Fintech start window did not open.');
+        const startLog = [];
+        start.on('console', (message) => startLog.push(`${message.type()}: ${message.text().slice(0, 300)}`));
+        start.on('pageerror', (error) => startLog.push(`pageerror: ${error.message.slice(0, 300)}`));
+        await start.waitForLoadState('domcontentloaded');
+        await start.waitForSelector('#slots .slot', { timeout: 15000 }).catch((error) => { throw new Error(`${error.message}\nStart window log:\n${startLog.join('\n')}\nURL: ${start.url()}`); });
+        assert.equal(await start.locator('#slots .slot').count(), 2, 'The window offers an institutions slot and an exposures slot.');
+        assert.equal(await start.locator('#checkData').isDisabled(), true, 'Nothing can be checked before a required file is chosen.');
+        assert.equal(await start.locator('.step[data-step="scenario"]').isDisabled(), true);
+
+        // A file with a balance-sheet problem is refused, and the message names the row.
+        await answer(join(badDirectory, 'institutions.csv'));
+        await start.click('[data-choose="institutions"]');
+        await start.waitForSelector('#slots .file-line .name');
+        await start.click('#checkData');
+        await start.waitForSelector('#importResult .notice.error');
+        const problems = await start.textContent('#importResult .notice.error');
+        assert.match(problems, /institutions\.csv/);
+        assert.match(problems, /line 2/);
+        assert.match(problems, /Alpha: assets 90 do not equal liabilities and equity 95/);
+        assert.equal(await start.locator('.step[data-step="scenario"]').isDisabled(), true, 'No model is built from a file with errors.');
+
+        // The real files import cleanly.
+        await answer(join(samplesDirectory, 'institutions.csv'));
+        await start.click('[data-choose="institutions"]');
+        await answer(join(samplesDirectory, 'exposures.csv'));
+        await start.click('[data-choose="exposures"]');
+        await start.click('#checkData');
+        await start.waitForSelector('#importResult .notice.ok');
+        assert.match(await start.textContent('#importResult .notice.ok'), /8 institutions, 38 interbank exposures/);
+        assert.equal(await start.locator('#importResult tbody tr').count(), 8);
+
+        await start.click('#toScenarios');
+        await start.waitForSelector('#scenarioList .scenario');
+        assert.equal(await start.locator('#scenarioList .scenario').count(), 4);
+        assert.equal(await start.inputValue('#entityChoice'), 'Alder Bank', 'The stressed institution defaults to the largest.');
+        assert.match(await start.textContent('#scenarioDetail'), /withdraw 1\.5% of Alder Bank's deposits/);
+        await start.click('#runScenario');
+        await start.waitForSelector('#panel-results.active #tiles .tile', { timeout: 120000 });
+        assert.match(await start.textContent('#title-results'), /Depositor run on Alder Bank/);
+        const headline = await start.textContent('#headline');
+        console.log(`Start window headline: ${headline}`);
+        assert.match(headline, /institution/i);
+        assert.equal(await start.locator('#resultTable tbody tr').count(), 8);
+        assert.ok(await start.locator('#chart svg path').count() >= 10, 'The chart draws a baseline and a scenario line per institution shown.');
+        // The stressed institution loses equity and is the hardest hit.
+        assert.match(await start.textContent('#tiles'), /Alder Bank/);
+
+        // Open in the canvas: the main window now holds the model with a baseline and a forked branch.
+        await start.click('#openCanvas');
+        await window.waitForFunction(() => document.querySelector('.documentTitle').textContent === 'FintechStart', null, { timeout: 30000 });
+        await window.waitForFunction(() => document.querySelectorAll('#branchChips > *').length === 2, null, { timeout: 30000 });
+        assert.match(await window.textContent('.modelStatus'), /11 nodes/);
+
+        // Export: results, summary, the model with its results, and a manifest that lets it be reproduced.
+        await answer(exportDirectory);
+        await start.click('#exportResults');
+        await start.waitForFunction(() => document.querySelector('#exportStatus').textContent.includes('Saved.'), null, { timeout: 30000 });
+        const [folderName] = await readdir(exportDirectory);
+        const folder = join(exportDirectory, folderName);
+        assert.deepEqual((await readdir(folder)).sort(), ['project.kjt', 'results.csv', 'run-manifest.json', 'summary.csv']);
+        const manifest = JSON.parse(await readFile(join(folder, 'run-manifest.json'), 'utf8'));
+        const digest = async (path) => createHash('sha256').update(await readFile(path)).digest('hex');
+        assert.equal(manifest.package.addonId, 'konjugate.fintech.start');
+        assert.equal(manifest.scenario.name, 'Depositor run');
+        assert.equal(manifest.scenario.chosenEntity, 'Alder Bank');
+        assert.equal(manifest.inputs.find((input) => input.role === 'institutions').sha256, await digest(join(samplesDirectory, 'institutions.csv')), 'The manifest records the hash of the file that was read.');
+        assert.equal(manifest.inputs.find((input) => input.role === 'exposures').sha256, await digest(join(samplesDirectory, 'exposures.csv')));
+        for (const [name, entry] of Object.entries(manifest.files)) assert.equal(entry.sha256, await digest(join(folder, name)), `${name} matches its recorded hash`);
+        const results = await readFile(join(folder, 'results.csv'), 'utf8');
+        assert.match(results, /^branch,time,node,state,unit,value\n/);
+        assert.ok(results.includes('Depositor run,') && results.includes('Baseline,'), 'The results file holds both branches.');
+        console.log(`Start window: import, scenario, comparison, canvas and export all work (${manifest.scenario.interventions.length} intervention applied to ${manifest.scenario.chosenEntity}).`);
     });
     console.log('Fintech interaction checks passed.');
 } finally {

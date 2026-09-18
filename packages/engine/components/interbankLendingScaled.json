@@ -1,0 +1,118 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "interbankLendingScaled",
+    "kind": "bundle",
+    "name": "Interbank lending (size-aware)",
+    "domains": [
+        "finance"
+    ],
+    "description": "Like Interbank lending, but the lending rate follows the gap between the two banks' reserve ratios (reserves over deposits) instead of the gap in absolute reserves, so banks of very different sizes exchange liquidity in proportion to their size and a bank already at its normal reserve level neither lends nor borrows. The first bank lends when its ratio is higher; the reserves move across, the lender books an interbank claim and the borrower books matching borrowing, so both balance sheets stay balanced. Apply it once for each direction two banks might lend in. Select the lender first, then the borrower, then click this bundle.",
+    "color": "#c48a3f",
+    "endpoints": [
+        {
+            "id": "lender",
+            "label": "Lending bank"
+        },
+        {
+            "id": "borrower",
+            "label": "Borrowing bank"
+        }
+    ],
+    "sharedParameters": [
+        {
+            "key": "flowRate",
+            "name": "Interbank flow rate",
+            "symbol": "flowRate",
+            "value": 0.05,
+            "unit": "1/day",
+            "mode": "constant",
+            "scope": "project"
+        }
+    ],
+    "edges": [
+        {
+            "name": "Interbank lending (reserves)",
+            "from": "lender",
+            "to": "borrower",
+            "bidirectional": true,
+            "ports": {
+                "source": [
+                    "reserves",
+                    "deposits"
+                ],
+                "target": [
+                    "reserves",
+                    "deposits"
+                ]
+            },
+            "output": {
+                "role": "target",
+                "state": "reserves"
+            },
+            "latex": "\\mathrm{flowRate} \\cdot \\min\\left(\\mathrm{sourceDeposits}, \\mathrm{targetDeposits}\\right) \\cdot \\max\\left(0, \\frac{\\mathrm{sourceReserves}}{\\max\\left(\\mathrm{sourceDeposits}, 1\\right)} - \\frac{\\mathrm{targetReserves}}{\\max\\left(\\mathrm{targetDeposits}, 1\\right)}\\right)",
+            "parameters": [
+                {
+                    "name": "Flow rate",
+                    "symbol": "flowRate",
+                    "shared": "flowRate"
+                }
+            ]
+        },
+        {
+            "name": "Interbank lending (claim)",
+            "from": "lender",
+            "to": "borrower",
+            "ports": {
+                "source": [
+                    "claims",
+                    "reserves",
+                    "deposits"
+                ],
+                "target": [
+                    "reserves",
+                    "deposits"
+                ]
+            },
+            "output": {
+                "role": "source",
+                "state": "claims"
+            },
+            "latex": "\\mathrm{flowRate} \\cdot \\min\\left(\\mathrm{sourceDeposits}, \\mathrm{targetDeposits}\\right) \\cdot \\max\\left(0, \\frac{\\mathrm{sourceReserves}}{\\max\\left(\\mathrm{sourceDeposits}, 1\\right)} - \\frac{\\mathrm{targetReserves}}{\\max\\left(\\mathrm{targetDeposits}, 1\\right)}\\right)",
+            "parameters": [
+                {
+                    "name": "Flow rate",
+                    "symbol": "flowRate",
+                    "shared": "flowRate"
+                }
+            ]
+        },
+        {
+            "name": "Interbank lending (borrowing)",
+            "from": "lender",
+            "to": "borrower",
+            "ports": {
+                "source": [
+                    "reserves",
+                    "deposits"
+                ],
+                "target": [
+                    "borrowing",
+                    "reserves",
+                    "deposits"
+                ]
+            },
+            "output": {
+                "role": "target",
+                "state": "borrowing"
+            },
+            "latex": "\\mathrm{flowRate} \\cdot \\min\\left(\\mathrm{sourceDeposits}, \\mathrm{targetDeposits}\\right) \\cdot \\max\\left(0, \\frac{\\mathrm{sourceReserves}}{\\max\\left(\\mathrm{sourceDeposits}, 1\\right)} - \\frac{\\mathrm{targetReserves}}{\\max\\left(\\mathrm{targetDeposits}, 1\\right)}\\right)",
+            "parameters": [
+                {
+                    "name": "Flow rate",
+                    "symbol": "flowRate",
+                    "shared": "flowRate"
+                }
+            ]
+        }
+    ]
+}

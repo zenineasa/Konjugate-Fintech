@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+    <title>Fintech Start</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="rail" aria-label="Steps">
+        <div class="brand"><strong>Fintech Start</strong><span>Contagion and stress scenarios</span></div>
+        <button class="step" type="button" data-step="data" aria-current="step"><span class="number">1</span><span><b>Your data</b><small>Balance sheets and exposures</small></span></button>
+        <button class="step" type="button" data-step="scenario" disabled><span class="number">2</span><span><b>Scenario</b><small>Choose what to test</small></span></button>
+        <button class="step" type="button" data-step="results" disabled><span class="number">3</span><span><b>Results</b><small>Compare with the baseline</small></span></button>
+        <button class="step" type="button" data-step="learn"><span class="number">4</span><span><b>Learn</b><small>Format, assumptions, guides</small></span></button>
+        <p class="rail-note">Everything stays on this computer. The model is illustrative and has not been validated for regulatory use.</p>
+    </nav>
+
+    <main>
+        <section class="panel active" id="panel-data" aria-labelledby="title-data">
+            <header>
+                <h2 id="title-data">Start from your own data</h2>
+                <p class="lede">Choose one file with a balance sheet per institution, and optionally one with who has lent to whom. Konjugate checks them, tells you exactly what it finds wrong, and builds the model.</p>
+            </header>
+            <div class="grid two" id="slots"></div>
+            <div class="actions">
+                <button class="button primary" type="button" id="checkData" disabled>Check my data</button>
+                <button class="button" type="button" id="useSample">Use the sample data</button>
+                <button class="button link" type="button" data-page="dataFormat">What format do the files need?</button>
+            </div>
+            <div id="importStatus" aria-live="polite"></div>
+            <div id="importResult"></div>
+        </section>
+
+        <section class="panel" id="panel-scenario" aria-labelledby="title-scenario">
+            <header>
+                <h2 id="title-scenario">Choose a scenario</h2>
+                <p class="lede">Each scenario runs the same model twice: once as it is, and once with a shock from day 5, so you can see exactly what the shock changes.</p>
+            </header>
+            <div class="scenarios" id="scenarioList" role="group" aria-label="Scenarios"></div>
+            <div class="detail card hidden" id="scenarioDetail"></div>
+            <div class="actions">
+                <button class="button primary" type="button" id="runScenario" disabled>Run scenario</button>
+            </div>
+            <div id="runStatus" aria-live="polite"></div>
+        </section>
+
+        <section class="panel" id="panel-results" aria-labelledby="title-results">
+            <header>
+                <h2 id="title-results">Results</h2>
+                <p class="headline" id="headline"></p>
+            </header>
+            <div class="grid tiles" id="tiles"></div>
+            <div class="card chart-card">
+                <h4 id="chartTitle">Equity of the most affected institutions, as a share of where it started</h4>
+                <div id="chart"></div>
+                <div class="legend" id="legend"></div>
+                <div class="hover-readout" id="readout" aria-live="off"></div>
+            </div>
+            <h3>All institutions</h3>
+            <div class="card" style="padding: 6px 10px"><table id="resultTable"></table></div>
+            <div class="actions">
+                <button class="button primary" type="button" id="openCanvas">Open in Konjugate to inspect</button>
+                <button class="button" type="button" id="exportResults">Export results…</button>
+                <button class="button link" type="button" id="anotherScenario">Try another scenario</button>
+            </div>
+            <div id="exportStatus" aria-live="polite"></div>
+            <p class="footnote">Insolvent means equity below zero at some point in the run. Open in Konjugate shows the same runs in the full canvas, where every equation and parameter can be inspected.</p>
+        </section>
+
+        <section class="panel" id="panel-learn" aria-labelledby="title-learn">
+            <header>
+                <h2 id="title-learn">Learn</h2>
+                <p class="lede">Short guides, bundled with this package so they work with no network connection.</p>
+            </header>
+            <div class="learn" id="learnCards"></div>
+        </section>
+    </main>
+    <script type="module" src="start.mjs"></script>
+</body>
+</html>

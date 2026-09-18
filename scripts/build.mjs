@@ -1,6 +1,6 @@
 /* Copyright © 2026 Zenin Easa Panthakkalakath */
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { buildModels } from './buildModels.mjs';
@@ -40,3 +40,33 @@ await mkdir(outputDirectory, { recursive: true });
 const target = join(outputDirectory, `${manifest.pluginId}-${manifest.version}.kjp`);
 await writeFile(target, archive);
 console.log(`Built ${target}`);
+
+// ---- the Start add-on (a launcher) -------------------------------------------------------------------
+// It carries its own copy of the bundle and node definitions its importer builds models from, taken from
+// the plugin's components at build time so the two can never drift.
+const startDirectory = join(fintechRoot, 'packages', 'start');
+const startManifest = JSON.parse(await readFile(join(startDirectory, 'addon.json'), 'utf8'));
+const startFiles = {};
+const collect = async (directory, prefix = '') => {
+    for (const entry of await readdir(join(directory, prefix), { withFileTypes: true })) {
+        const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+        if (entry.isDirectory()) await collect(directory, relative);
+        else if (relative !== 'addon.json') startFiles[relative] = await readFile(join(directory, relative));
+    }
+};
+await collect(startDirectory);
+for (const id of ['commercialBank', 'depositorWallets', 'centralBank', 'assetMarket', 'depositRun', 'fireSale', 'interbankLendingScaled', 'interbankDefault', 'emergencyLending']) {
+    startFiles[`bundles/${id}.json`] = await readFile(join(packageDirectory, 'components', `${id}.json`));
+}
+const startArchive = createPackageArchive({
+    packageManifest: {
+        format: 'konjugate-package', formatVersion: 1, packageType: 'addon',
+        packageId: startManifest.addonId, name: startManifest.name, version: startManifest.version,
+        contents: { manifest: 'addon.json' }
+    },
+    contributionManifest: startManifest,
+    files: startFiles
+});
+const startTarget = join(outputDirectory, `${startManifest.addonId}-${startManifest.version}.kja`);
+await writeFile(startTarget, startArchive);
+console.log(`Built ${startTarget}`);

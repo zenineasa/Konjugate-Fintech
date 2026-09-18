@@ -1,0 +1,28 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Assumptions and limits</title><link rel="stylesheet" href="_style.css"></head><body>
+<h1>Assumptions and limits</h1>
+<p class="lede">What the model does, what it assumes about your data, and what it has not been tested against.</p>
+
+<div class="note"><b>This is an illustrative model.</b> It has not been validated against real data, benchmarked against another tool, or reviewed by a practitioner. Do not use it for regulatory reporting or decisions without your own validation.</div>
+
+<h2>What is modelled</h2>
+<p>Each institution has a balance sheet that always balances: reserves, loans and interbank claims on one side; deposits, equity and interbank borrowing on the other. Every flow is a matched pair, so money and balance-sheet identities hold at every step. Four channels move stress between institutions: depositors withdrawing cash, institutions selling loans into a shared market whose price falls as it fills, interbank lending that moves liquidity from institutions with more to those with less, and defaults that pass an insolvent institution's shortfall to its creditors.</p>
+
+<h2>Assumptions made about your data</h2>
+<table>
+<tr><th>Assumption</th><th>Value</th><th>Why</th></tr>
+<tr><td>Reserve target</td><td>10% of deposits, or current reserves if lower</td><td>Stress starts when reserves fall below the target; an institution already below it would otherwise start in distress</td></tr>
+<tr><td>Central bank reserves</td><td>25% of total deposits</td><td>Limits how much support a scenario can draw on</td></tr>
+<tr><td>Fire-sale market</td><td>Depth about 83% of total loans; price falls with the amount sold</td><td>Sets how far forced sales move prices</td></tr>
+<tr><td>Fire-sale haircut</td><td>10%</td><td>The discount to book value on a forced sale</td></tr>
+<tr><td>Interbank default shares</td><td>Each creditor's share of a borrower's interbank debt</td><td>From your exposures, or estimated</td></tr>
+</table>
+<p>All of these are parameters in the model. Open it in Konjugate and use the Parameters table to see and change them.</p>
+
+<h2>What it simplifies</h2>
+<ul>
+<li>Losses pass to creditors in fixed shares, not through a solved clearing vector (Eisenberg–Noe).</li>
+<li>Interbank loans have no maturities or repayment, and negative equity is not floored, so the size of losses in severe scenarios is illustrative.</li>
+<li>There are no capital or liquidity regulations (ratios, buffers), no derivatives, no funding markets beyond interbank lending, and no behavioural response by institutions beyond the modelled channels.</li>
+<li>Results depend on assumptions above that are not calibrated to your institutions.</li>
+</ul>
+</body></html>

@@ -114,6 +114,12 @@
             "entry": "components/liquidationSale.json"
         },
         {
+            "kind": "component",
+            "componentId": "interbankLendingScaled",
+            "apiVersion": 1,
+            "entry": "components/interbankLendingScaled.json"
+        },
+        {
             "kind": "example",
             "exampleId": "interbankLiquidityRun",
             "apiVersion": 1,

@@ -1,0 +1,170 @@
+{
+    "addonId": "konjugate.fintech.start",
+    "name": "Fintech Start",
+    "version": "0.1.0",
+    "apiVersion": 1,
+    "kind": "launcher",
+    "entry": "index.html",
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "permissions": [
+        "data.import",
+        "scenario.run",
+        "model.open",
+        "results.export",
+        "pages.open"
+    ],
+    "contributes": {
+        "toolstrip": [
+            {
+                "commandId": "openStart",
+                "label": "Fintech",
+                "tooltip": "Open the Fintech start window",
+                "symbol": "◆",
+                "when": "always",
+                "contexts": []
+            }
+        ],
+        "importers": [
+            {
+                "importerId": "balanceSheets",
+                "name": "Balance sheets and exposures",
+                "entry": "importers/balanceSheet.mjs",
+                "files": [
+                    {
+                        "role": "institutions",
+                        "label": "Institutions",
+                        "required": true,
+                        "accept": [
+                            "csv"
+                        ],
+                        "description": "One row per institution: its balance sheet in millions.",
+                        "sample": "samples/institutions.csv"
+                    },
+                    {
+                        "role": "exposures",
+                        "label": "Exposures",
+                        "required": false,
+                        "accept": [
+                            "csv"
+                        ],
+                        "description": "Who has lent to whom: one row per lender, borrower and amount. Optional: without it, exposures are estimated from each institution's interbank totals.",
+                        "sample": "samples/exposures.csv"
+                    }
+                ]
+            }
+        ],
+        "scenarios": [
+            {
+                "scenarioId": "depositorRun",
+                "name": "Depositor run",
+                "description": "Depositors withdraw cash from one institution for a week and drain its reserves. Watch the stress spread through interbank lending, fire sales and defaults.",
+                "forkAt": 5,
+                "runTime": 60,
+                "choose": {
+                    "label": "Institution under stress"
+                },
+                "effects": [
+                    "For 8 days from day 5, depositors withdraw 1.5% of {entity}'s deposits every day."
+                ],
+                "interventions": [
+                    {
+                        "parameter": "withdrawalRate",
+                        "target": "chosen",
+                        "value": 0.015,
+                        "duration": 8
+                    }
+                ]
+            },
+            {
+                "scenarioId": "runWithPriceShock",
+                "name": "Depositor run with an asset-price shock",
+                "description": "The same run, in a market where forced sales fetch much less: the assets a stressed institution sells lose 25% of their value instead of 10%.",
+                "forkAt": 5,
+                "runTime": 60,
+                "choose": {
+                    "label": "Institution under stress"
+                },
+                "effects": [
+                    "For 8 days from day 5, depositors withdraw 1.5% of {entity}'s deposits every day.",
+                    "From day 5, loans sold in a hurry lose 25% of their book value instead of 10%."
+                ],
+                "interventions": [
+                    {
+                        "parameter": "withdrawalRate",
+                        "target": "chosen",
+                        "value": 0.015,
+                        "duration": 8
+                    },
+                    {
+                        "parameter": "baseHaircut",
+                        "target": "global",
+                        "value": 0.25
+                    }
+                ]
+            },
+            {
+                "scenarioId": "runWithCentralBankSupport",
+                "name": "Depositor run with central-bank support",
+                "description": "The same run, but the central bank lends to the institution under stress from day 8. Compare it with the unsupported run to see what the support is worth.",
+                "forkAt": 5,
+                "runTime": 60,
+                "choose": {
+                    "label": "Institution under stress"
+                },
+                "effects": [
+                    "For 8 days from day 5, depositors withdraw 1.5% of {entity}'s deposits every day.",
+                    "From day 8, the central bank lends {entity} half of its maximum daily facility (5% of its deposits a day)."
+                ],
+                "interventions": [
+                    {
+                        "parameter": "withdrawalRate",
+                        "target": "chosen",
+                        "value": 0.015,
+                        "duration": 8
+                    },
+                    {
+                        "parameter": "emergencyLending",
+                        "target": "chosen",
+                        "fractionOfMaximum": 0.5,
+                        "at": 3
+                    }
+                ]
+            },
+            {
+                "scenarioId": "marketWideRun",
+                "name": "Market-wide run",
+                "description": "Every institution loses deposits at once for ten days: a system-wide loss of confidence rather than a single failure.",
+                "forkAt": 5,
+                "runTime": 60,
+                "effects": [
+                    "For 10 days from day 5, depositors withdraw 0.7% of every institution's deposits each day."
+                ],
+                "interventions": [
+                    {
+                        "parameter": "withdrawalRate",
+                        "target": "all",
+                        "value": 0.007,
+                        "duration": 10
+                    }
+                ]
+            }
+        ],
+        "pages": [
+            {
+                "pageId": "gettingStarted",
+                "label": "Getting started",
+                "entry": "help/gettingStarted.html"
+            },
+            {
+                "pageId": "dataFormat",
+                "label": "Data format",
+                "entry": "help/dataFormat.html"
+            },
+            {
+                "pageId": "assumptions",
+                "label": "Assumptions and limits",
+                "entry": "help/assumptions.html"
+            }
+        ]
+    }
+}

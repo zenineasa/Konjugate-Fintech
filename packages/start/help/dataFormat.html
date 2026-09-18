@@ -1,0 +1,44 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Data format</title><link rel="stylesheet" href="_style.css"></head><body>
+<h1>Data format</h1>
+<p class="lede">Version 0: a first design based on the balance-sheet and exposure data used in published interbank contagion studies. It is meant to be corrected with feedback from the people who will use it.</p>
+
+<h2>Institutions file (required)</h2>
+<p>A CSV with a header row and one row per institution. All amounts are in millions of one currency. Column names ignore case, spaces, dashes and underscores.</p>
+<table>
+<tr><th>Column</th><th>Meaning</th></tr>
+<tr><td><code>institution</code></td><td>A unique name. Also accepted: <code>name</code>, <code>bank</code>.</td></tr>
+<tr><td><code>cash_and_reserves</code></td><td>Liquid assets: cash and central-bank reserves. Also: <code>cash</code>, <code>reserves</code>.</td></tr>
+<tr><td><code>loans_and_securities</code></td><td>All other assets outside the banking system. Also: <code>loans</code>, <code>external_assets</code>.</td></tr>
+<tr><td><code>interbank_assets</code></td><td>Total lent to other institutions in the file. Optional if you supply exposures.</td></tr>
+<tr><td><code>deposits_and_other_liabilities</code></td><td>Liabilities to customers and anyone outside the file. Also: <code>deposits</code>, <code>other_liabilities</code>.</td></tr>
+<tr><td><code>interbank_liabilities</code></td><td>Total borrowed from other institutions in the file. Optional if you supply exposures.</td></tr>
+<tr><td><code>equity</code></td><td>Capital. Also: <code>capital</code>. If blank or absent, it is computed as assets minus liabilities.</td></tr>
+</table>
+<pre>institution,cash_and_reserves,loans_and_securities,interbank_assets,deposits_and_other_liabilities,interbank_liabilities,equity
+Alder Bank,27800,226200,18800,252300,8500,12000
+Birch Bank,16500,146500,13000,150100,15900,10000</pre>
+
+<h2>Exposures file (optional)</h2>
+<p>One row per bilateral loan: the lender, the borrower and the amount. Also accepted: <code>creditor</code>, <code>debtor</code>, <code>exposure</code>.</p>
+<pre>lender,borrower,amount
+Alder Bank,Birch Bank,4200
+Birch Bank,Cedar Bank,1800</pre>
+<p>Rows for the same pair are added together. If you also give <code>interbank_assets</code> and <code>interbank_liabilities</code>, they must agree with the exposures to within 0.5%.</p>
+
+<h2>Without an exposures file</h2>
+<p>Bilateral exposures are often confidential. If you leave the exposures file out but give each institution's <code>interbank_assets</code> and <code>interbank_liabilities</code>, the model estimates who lent to whom by proportional allocation: each institution's lending is spread across the others in proportion to their borrowing. This is the standard fallback in the literature, and it tends to understate how concentrated real exposures are, so treat contagion results as indicative. The window says whenever it has done this.</p>
+
+<h2>What is checked</h2>
+<table>
+<tr><th>Check</th><th>Message you will see</th></tr>
+<tr><td>Required columns present</td><td>The column "…" is missing</td></tr>
+<tr><td>Names unique and not blank</td><td>"…" appears more than once (first on line N)</td></tr>
+<tr><td>Amounts are numbers, zero or more</td><td>"…" is not a number / … is negative</td></tr>
+<tr><td>Balance sheets balance</td><td>Assets X do not equal liabilities and equity Y (difference Z), with the row</td></tr>
+<tr><td>Exposures refer to known institutions, not to themselves, above zero</td><td>"…" is not in the institutions file</td></tr>
+<tr><td>Exposures agree with the institutions' interbank totals</td><td>interbank_assets is X but exposures.csv shows lending Y</td></tr>
+<tr><td>Between 2 and 40 institutions</td><td>At least two institutions are needed / more than this version handles</td></tr>
+</table>
+<p>Every message names the file, the row as you see it in a spreadsheet, and the column. A file with any error builds no model.</p>
+<div class="note">Balance sheets are matched to within 0.01% of total assets, or 0.5 million, whichever is larger.</div>
+</body></html>
