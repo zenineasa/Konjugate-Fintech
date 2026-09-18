@@ -105,6 +105,25 @@ class ModelBuilder {
         }
     }
 
+    // Patches shared parameters by symbol, e.g. { panicSensitivity: { value: 6 } } or
+    // { panicSensitivity: { tuning: { minimum: 0, maximum: 20 } } }: how calibration studies build a
+    // "true" model to generate data from and a mis-specified one to fit.
+    overrideSharedParameters(patches) {
+        for (const [symbol, patch] of Object.entries(patches)) {
+            const shared = this.sharedParameters.find((candidate) => candidate.symbol === symbol);
+            if (!shared) throw new Error(`No shared parameter "${symbol}" to override.`);
+            Object.assign(shared, patch);
+            // Linked parameters mirror the shared value.
+            if (patch.value !== undefined) this.#syncLinked(shared);
+        }
+    }
+
+    #syncLinked(shared) {
+        for (const edge of this.edges) for (const parameter of edge.parameters) {
+            if (parameter.sharedParameterId === shared.id) parameter.value = shared.value;
+        }
+    }
+
     document({ globalTimeStep, outputInterval }) {
         const runConfigurationId = this.id();
         return {
@@ -134,7 +153,7 @@ function templateNode(model, templateId, name, position, initialValues = {}) {
 // reserves + loans + claims = deposits + equity + borrowing and total money is conserved by
 // construction. A central bank behind a live "Emergency lending" parameter (0 in the baseline)
 // and a live "Base haircut" let you fork the run mid-crisis with a policy response or a fresh shock.
-function interbankLiquidityRun({ nodesOnly = false } = {}) {
+function interbankLiquidityRun({ nodesOnly = false, shared = {} } = {}) {
     const model = new ModelBuilder();
     const bankA = templateNode(model, 'commercialBank', 'Bank A', [-3, 0, 0]);
     const bankB = templateNode(model, 'commercialBank', 'Bank B', [0, 2, 0]);
@@ -158,6 +177,7 @@ function interbankLiquidityRun({ nodesOnly = false } = {}) {
         }
     }
     model.applyBundle(bundleTemplates.emergencyLending, { centralBank, bank: bankA });
+    model.overrideSharedParameters(shared);
     return finish(model);
 }
 
@@ -198,6 +218,11 @@ function defiLiquidationCascade({ nodesOnly = false } = {}) {
 }
 
 const models = { interbankLiquidityRun: () => interbankLiquidityRun(), defiLiquidationCascade: () => defiLiquidationCascade() };
+
+// The reference model as an in-memory document, e.g. with shared-parameter overrides for calibration.
+export function buildModelDocument(name, options = {}) {
+    return { interbankLiquidityRun, defiLiquidationCascade }[name](options);
+}
 
 // A model's nodes with no edges, written to `path`, for tests that wire the model up themselves.
 export async function writeNodesOnlyModel(name, path) {
