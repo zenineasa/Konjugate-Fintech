@@ -1,0 +1,16 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "commercialBank",
+    "kind": "node",
+    "name": "Commercial bank",
+    "domains": ["finance"],
+    "description": "A bank balance sheet: reserves and loans on the asset side, deposits and equity on the liability side. Connect Liquidity flow edges to move reserves between banks; conservation holds by construction.",
+    "shape": "box",
+    "color": "#2f6970",
+    "states": [
+        { "symbol": "reserves", "label": "Reserves", "initialValue": 100, "unit": "M" },
+        { "symbol": "loans", "label": "Loans", "initialValue": 800, "unit": "M" },
+        { "symbol": "deposits", "label": "Deposits", "initialValue": 850, "unit": "M" },
+        { "symbol": "equity", "label": "Equity", "initialValue": 50, "unit": "M" }
+    ]
+}

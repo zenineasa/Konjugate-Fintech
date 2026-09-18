@@ -1,0 +1,14 @@
+{
+    "name": "konjugate-fintech",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "description": "Proprietary fintech toolbox for Konjugate.",
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "scripts": {
+        "build": "node scripts/build.mjs",
+        "install:dev": "node scripts/build.mjs && node scripts/installDev.mjs",
+        "test": "node --test tests/unit/*.test.mjs",
+        "test:interaction": "node scripts/build.mjs && node tests/interaction/run.mjs"
+    }
+}

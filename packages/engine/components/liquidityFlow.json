@@ -1,0 +1,16 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "liquidityFlow",
+    "kind": "edge",
+    "name": "Liquidity flow",
+    "domains": ["finance"],
+    "description": "Reserves flowing between two balance sheets in proportion to their imbalance, e.g. interbank lending or pool rebalancing. Bidirectional: what leaves one side enters the other, so the total is conserved by construction.",
+    "color": "#c48a3f",
+    "ports": { "source": "reserves", "target": "reserves" },
+    "output": { "role": "target", "state": "reserves" },
+    "bidirectional": true,
+    "latex": "\\mathrm{flowRate} \\cdot \\left(\\mathrm{sourceReserves} - \\mathrm{targetReserves}\\right)",
+    "parameters": [
+        { "name": "Flow rate", "symbol": "flowRate", "value": 0.1, "unit": "1/s", "mode": "constant" }
+    ]
+}

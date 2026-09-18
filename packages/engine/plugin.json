@@ -1,0 +1,13 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "pluginId": "konjugate.fintech.engine",
+    "name": "Konjugate Fintech Engine",
+    "version": "0.1.0",
+    "apiVersion": 1,
+    "contributes": [
+        { "kind": "component", "componentId": "commercialBank", "apiVersion": 1, "entry": "components/commercialBank.json" },
+        { "kind": "component", "componentId": "liquidityPoolAmm", "apiVersion": 1, "entry": "components/liquidityPoolAmm.json" },
+        { "kind": "component", "componentId": "liquidityFlow", "apiVersion": 1, "entry": "components/liquidityFlow.json" }
+    ],
+    "permissions": []
+}
