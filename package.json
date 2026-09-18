@@ -7,6 +7,7 @@
     "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
     "scripts": {
         "build": "node scripts/build.mjs",
+        "build:models": "node scripts/buildModels.mjs",
         "install:dev": "node scripts/build.mjs && node scripts/installDev.mjs",
         "test": "node --test tests/unit/*.test.mjs",
         "test:interaction": "node scripts/build.mjs && node tests/interaction/run.mjs"
