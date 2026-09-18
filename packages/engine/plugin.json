@@ -64,6 +64,12 @@
             "componentId": "emergencyLending",
             "apiVersion": 1,
             "entry": "components/emergencyLending.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "interbankDefault",
+            "apiVersion": 1,
+            "entry": "components/interbankDefault.json"
         }
     ],
     "permissions": []

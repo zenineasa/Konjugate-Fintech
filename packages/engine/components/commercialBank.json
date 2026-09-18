@@ -6,7 +6,7 @@
     "domains": [
         "finance"
     ],
-    "description": "A bank balance sheet: reserves and loans on the asset side; deposits, equity and net interbank borrowing on the liability side. Reserves plus loans equal deposits plus equity plus interbank borrowing, and the bundles keep that identity intact.",
+    "description": "A bank balance sheet: reserves, loans and interbank claims on the asset side; deposits, equity and interbank borrowing on the liability side. Reserves plus loans plus claims equal deposits plus equity plus borrowing, and the bundles keep that identity intact.",
     "shape": "box",
     "color": "#2f6970",
     "states": [
@@ -23,6 +23,12 @@
             "unit": "M"
         },
         {
+            "symbol": "claims",
+            "label": "Interbank claims",
+            "initialValue": 0,
+            "unit": "M"
+        },
+        {
             "symbol": "deposits",
             "label": "Deposits",
             "initialValue": 850,
@@ -35,7 +41,7 @@
             "unit": "M"
         },
         {
-            "symbol": "interbank",
+            "symbol": "borrowing",
             "label": "Interbank borrowing",
             "initialValue": 0,
             "unit": "M"

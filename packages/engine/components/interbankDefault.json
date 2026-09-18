@@ -1,0 +1,163 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "interbankDefault",
+    "kind": "bundle",
+    "name": "Interbank default",
+    "domains": [
+        "finance"
+    ],
+    "description": "When a borrowing bank's equity turns negative it is insolvent, and its creditors bear the shortfall: the borrower's debt is written down (which restores its equity toward zero) and each creditor loses the same amount from its claims and its equity, in proportion to the credit share it holds of the borrower's interbank debt. This is the Eisenberg-Noe loss channel in stylized form, with a fixed share instead of a solved clearing vector. Select the borrowing bank first, then the creditor, then click this bundle; apply it for each borrower-creditor pair, giving the credit shares of one borrower's creditors a sum of one.",
+    "color": "#c46a6a",
+    "endpoints": [
+        {
+            "id": "borrower",
+            "label": "Borrowing bank"
+        },
+        {
+            "id": "creditor",
+            "label": "Creditor bank"
+        }
+    ],
+    "sharedParameters": [
+        {
+            "key": "writeDownRate",
+            "name": "Write-down rate",
+            "symbol": "writeDownRate",
+            "value": 1,
+            "unit": "1/day",
+            "mode": "constant",
+            "scope": "project"
+        },
+        {
+            "key": "creditShare",
+            "name": "Credit share",
+            "symbol": "creditShare",
+            "value": 0.5,
+            "unit": "",
+            "mode": "constant",
+            "scope": "instance"
+        }
+    ],
+    "edges": [
+        {
+            "name": "Default (creditor claims)",
+            "from": "borrower",
+            "to": "creditor",
+            "ports": {
+                "source": [
+                    "equity",
+                    "borrowing"
+                ],
+                "target": "claims"
+            },
+            "output": {
+                "role": "target",
+                "state": "claims"
+            },
+            "latex": "-\\mathrm{writeDownRate} \\cdot \\mathrm{creditShare} \\cdot \\min\\left(\\max\\left(0, -\\mathrm{sourceEquity}\\right), \\mathrm{sourceBorrowing}\\right)",
+            "color": "#c46a6a",
+            "parameters": [
+                {
+                    "name": "Write-down rate",
+                    "symbol": "writeDownRate",
+                    "shared": "writeDownRate"
+                },
+                {
+                    "name": "Credit share",
+                    "symbol": "creditShare",
+                    "shared": "creditShare"
+                }
+            ]
+        },
+        {
+            "name": "Default (creditor equity)",
+            "from": "borrower",
+            "to": "creditor",
+            "ports": {
+                "source": [
+                    "equity",
+                    "borrowing"
+                ],
+                "target": "equity"
+            },
+            "output": {
+                "role": "target",
+                "state": "equity"
+            },
+            "latex": "-\\mathrm{writeDownRate} \\cdot \\mathrm{creditShare} \\cdot \\min\\left(\\max\\left(0, -\\mathrm{sourceEquity}\\right), \\mathrm{sourceBorrowing}\\right)",
+            "color": "#c46a6a",
+            "parameters": [
+                {
+                    "name": "Write-down rate",
+                    "symbol": "writeDownRate",
+                    "shared": "writeDownRate"
+                },
+                {
+                    "name": "Credit share",
+                    "symbol": "creditShare",
+                    "shared": "creditShare"
+                }
+            ]
+        },
+        {
+            "name": "Default (debt written off)",
+            "from": "borrower",
+            "to": "creditor",
+            "ports": {
+                "source": [
+                    "borrowing",
+                    "equity"
+                ],
+                "target": "claims"
+            },
+            "output": {
+                "role": "source",
+                "state": "borrowing"
+            },
+            "latex": "-\\mathrm{writeDownRate} \\cdot \\mathrm{creditShare} \\cdot \\min\\left(\\max\\left(0, -\\mathrm{sourceEquity}\\right), \\mathrm{sourceBorrowing}\\right)",
+            "color": "#c46a6a",
+            "parameters": [
+                {
+                    "name": "Write-down rate",
+                    "symbol": "writeDownRate",
+                    "shared": "writeDownRate"
+                },
+                {
+                    "name": "Credit share",
+                    "symbol": "creditShare",
+                    "shared": "creditShare"
+                }
+            ]
+        },
+        {
+            "name": "Default (equity restored)",
+            "from": "borrower",
+            "to": "creditor",
+            "ports": {
+                "source": [
+                    "equity",
+                    "borrowing"
+                ],
+                "target": "claims"
+            },
+            "output": {
+                "role": "source",
+                "state": "equity"
+            },
+            "latex": "\\mathrm{writeDownRate} \\cdot \\mathrm{creditShare} \\cdot \\min\\left(\\max\\left(0, -\\mathrm{sourceEquity}\\right), \\mathrm{sourceBorrowing}\\right)",
+            "color": "#c46a6a",
+            "parameters": [
+                {
+                    "name": "Write-down rate",
+                    "symbol": "writeDownRate",
+                    "shared": "writeDownRate"
+                },
+                {
+                    "name": "Credit share",
+                    "symbol": "creditShare",
+                    "shared": "creditShare"
+                }
+            ]
+        }
+    ]
+}

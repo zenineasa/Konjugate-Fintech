@@ -6,7 +6,7 @@
     "domains": [
         "finance"
     ],
-    "description": "A bank short of reserves sells loans into a shared market at a price that falls as the market's holdings grow: loans leave the bank, buyer cash pays into its reserves, and the shortfall against book value hits its equity. Because the price is shared, one bank's distress worsens every other seller's proceeds. Select the bank and the asset market, then click this bundle.",
+    "description": "A bank short of reserves sells loans into a shared market at a price that falls as the market's holdings grow: loans leave the bank, buyer cash pays into its reserves, and the shortfall against book value hits its equity. Because the price is shared, one bank's distress worsens every other seller's proceeds. Select the bank and the asset market, then click this bundle. The base haircut is a live control, so a stress test can raise it mid-run.",
     "color": "#d98b54",
     "endpoints": [
         {
@@ -43,8 +43,13 @@
             "symbol": "baseHaircut",
             "value": 0.1,
             "unit": "",
-            "mode": "constant",
-            "scope": "project"
+            "mode": "live",
+            "scope": "project",
+            "control": {
+                "minimum": 0,
+                "maximum": 1,
+                "step": 0.05
+            }
         },
         {
             "key": "priceImpact",

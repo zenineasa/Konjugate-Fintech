@@ -64,11 +64,11 @@
             "to": "bank",
             "ports": {
                 "source": "reserves",
-                "target": "interbank"
+                "target": "borrowing"
             },
             "output": {
                 "role": "target",
-                "state": "interbank"
+                "state": "borrowing"
             },
             "latex": "\\mathrm{injection}",
             "color": "#9c83c4",
