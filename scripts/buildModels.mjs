@@ -15,7 +15,7 @@ const { reconcileEquationBindings, validateEquationLatex } = await import(pathTo
 // Every component template and bundle the plugin contributes, by id.
 const pluginDirectory = join(fintechRoot, 'packages', 'engine');
 const pluginManifest = JSON.parse(await readFile(join(pluginDirectory, 'plugin.json'), 'utf8'));
-const bundleTemplates = Object.fromEntries(await Promise.all(pluginManifest.contributes.map(async (contribution) =>
+const bundleTemplates = Object.fromEntries(await Promise.all(pluginManifest.contributes.filter((contribution) => contribution.kind === 'component').map(async (contribution) =>
     [contribution.componentId, JSON.parse(await readFile(join(pluginDirectory, contribution.entry), 'utf8'))])));
 
 const copyright = 'Copyright © 2026 Zenin Easa Panthakkalakath';

@@ -282,6 +282,22 @@ try {
         }
         console.log('Bundle-wired DeFi model matches the script-built one: baseline and shock fork agree on every state.');
     }, { targetTime: defiTargetTime });
+
+    // --- Scenario 5: the reference models are offered in Konjugate's Examples dialog. ----------------
+    await withApp(nodesOnly.path, async ({ window }) => {
+        await window.click('#exampleButton');
+        await window.waitForSelector('#examplesExplorerDialog[open]');
+        const labels = () => window.locator('.examplesExplorerItem b').allTextContents();
+        await window.waitForFunction(() => [...document.querySelectorAll('.examplesExplorerItem b')].some((item) => item.textContent === 'Interbank liquidity run'), null, { timeout: 15000 });
+        const listed = await labels();
+        for (const name of ['Interbank liquidity run', 'DeFi liquidation cascade']) assert.ok(listed.includes(name), `The Examples dialog should offer ${name}`);
+        await window.locator('.examplesExplorerItem', { hasText: 'Interbank liquidity run' }).click();
+        await window.click('#examplesExplorerLoad');
+        await window.waitForFunction(() => document.querySelector('.documentTitle').textContent === 'interbankLiquidityRun', null, { timeout: 15000 });
+        // The example is the model the generator writes: six nodes and the same 55 edges.
+        await window.waitForFunction(() => /6 nodes/.test(document.querySelector('.modelStatus').textContent) && /55 relationships/.test(document.querySelector('.modelStatus').textContent), null, { timeout: 15000 });
+        console.log('Both reference models are offered in the Examples dialog, and the interbank model loads with its 55 edges.');
+    });
     console.log('Fintech interaction checks passed.');
 } finally {
     await rm(scratch, { recursive: true, force: true });

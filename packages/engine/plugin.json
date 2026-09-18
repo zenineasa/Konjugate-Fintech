@@ -112,6 +112,30 @@
             "componentId": "liquidationSale",
             "apiVersion": 1,
             "entry": "components/liquidationSale.json"
+        },
+        {
+            "kind": "example",
+            "exampleId": "interbankLiquidityRun",
+            "apiVersion": 1,
+            "name": "Interbank liquidity run",
+            "domains": [
+                "finance"
+            ],
+            "description": "Three banks, a depositor run, fire sales and defaults. Fork it mid-crisis to compare a central-bank response with a fresh shock.",
+            "entry": "examples/interbankLiquidityRun.kjt",
+            "guide": "examples/interbankLiquidityRun.md"
+        },
+        {
+            "kind": "example",
+            "exampleId": "defiLiquidationCascade",
+            "apiVersion": 1,
+            "name": "DeFi liquidation cascade",
+            "domains": [
+                "finance"
+            ],
+            "description": "A price shock liquidates lending vaults whose collateral is priced from a thin pool, and the liquidation sales cascade to the next vault.",
+            "entry": "examples/defiLiquidationCascade.kjt",
+            "guide": "examples/defiLiquidationCascade.md"
         }
     ],
     "permissions": []
