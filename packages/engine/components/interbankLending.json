@@ -1,0 +1,84 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "interbankLending",
+    "kind": "bundle",
+    "name": "Interbank lending",
+    "domains": [
+        "finance"
+    ],
+    "description": "Reserves flow from the richer bank to the poorer one in proportion to the gap between them, and the borrower's interbank liability grows by the same amount, so both balance sheets stay balanced. Select the lending bank first, then the borrowing bank, then click this bundle; apply it to each pair of banks that trade.",
+    "color": "#c48a3f",
+    "endpoints": [
+        {
+            "id": "lender",
+            "label": "First bank"
+        },
+        {
+            "id": "borrower",
+            "label": "Second bank"
+        }
+    ],
+    "sharedParameters": [
+        {
+            "key": "flowRate",
+            "name": "Interbank flow rate",
+            "symbol": "flowRate",
+            "value": 0.05,
+            "unit": "1/day",
+            "mode": "constant",
+            "scope": "project"
+        }
+    ],
+    "edges": [
+        {
+            "name": "Interbank lending (reserves)",
+            "from": "lender",
+            "to": "borrower",
+            "bidirectional": true,
+            "ports": {
+                "source": "reserves",
+                "target": "reserves"
+            },
+            "output": {
+                "role": "target",
+                "state": "reserves"
+            },
+            "latex": "\\mathrm{flowRate} \\cdot \\left(\\mathrm{sourceReserves} - \\mathrm{targetReserves}\\right)",
+            "parameters": [
+                {
+                    "name": "Flow rate",
+                    "symbol": "flowRate",
+                    "shared": "flowRate"
+                }
+            ]
+        },
+        {
+            "name": "Interbank lending (borrowing)",
+            "from": "lender",
+            "to": "borrower",
+            "bidirectional": true,
+            "ports": {
+                "source": [
+                    "interbank",
+                    "reserves"
+                ],
+                "target": [
+                    "interbank",
+                    "reserves"
+                ]
+            },
+            "output": {
+                "role": "target",
+                "state": "interbank"
+            },
+            "latex": "\\mathrm{flowRate} \\cdot \\left(\\mathrm{sourceReserves} - \\mathrm{targetReserves}\\right)",
+            "parameters": [
+                {
+                    "name": "Flow rate",
+                    "symbol": "flowRate",
+                    "shared": "flowRate"
+                }
+            ]
+        }
+    ]
+}

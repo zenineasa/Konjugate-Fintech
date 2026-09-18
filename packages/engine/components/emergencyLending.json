@@ -1,0 +1,84 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "emergencyLending",
+    "kind": "bundle",
+    "name": "Emergency lending",
+    "domains": [
+        "finance"
+    ],
+    "description": "A central bank lends reserves to a bank: reserves flow in and the matching borrowing is recorded. One live \"Emergency lending\" parameter drives both legs, so one slider (or one fork intervention) is enough. Select the central bank and the bank, then click this bundle.",
+    "color": "#9c83c4",
+    "endpoints": [
+        {
+            "id": "centralBank",
+            "label": "Central bank"
+        },
+        {
+            "id": "bank",
+            "label": "Bank"
+        }
+    ],
+    "sharedParameters": [
+        {
+            "key": "lending",
+            "name": "Emergency lending",
+            "symbol": "injection",
+            "value": 0,
+            "unit": "M/day",
+            "mode": "live",
+            "control": {
+                "minimum": 0,
+                "maximum": 100,
+                "step": 1
+            },
+            "scope": "instance"
+        }
+    ],
+    "edges": [
+        {
+            "name": "Emergency lending (reserves)",
+            "from": "centralBank",
+            "to": "bank",
+            "bidirectional": true,
+            "ports": {
+                "source": "reserves",
+                "target": "reserves"
+            },
+            "output": {
+                "role": "target",
+                "state": "reserves"
+            },
+            "latex": "\\mathrm{injection}",
+            "color": "#9c83c4",
+            "parameters": [
+                {
+                    "name": "Emergency lending",
+                    "symbol": "injection",
+                    "shared": "lending"
+                }
+            ]
+        },
+        {
+            "name": "Emergency lending (borrowing)",
+            "from": "centralBank",
+            "to": "bank",
+            "ports": {
+                "source": "reserves",
+                "target": "interbank"
+            },
+            "output": {
+                "role": "target",
+                "state": "interbank"
+            },
+            "latex": "\\mathrm{injection}",
+            "color": "#9c83c4",
+            "parameters": [
+                {
+                    "name": "Emergency lending",
+                    "symbol": "injection",
+                    "shared": "lending"
+                }
+            ]
+        }
+    ]
+}

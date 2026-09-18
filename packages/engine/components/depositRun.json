@@ -1,0 +1,121 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "depositRun",
+    "kind": "bundle",
+    "name": "Deposit run",
+    "domains": [
+        "finance"
+    ],
+    "description": "Depositors withdraw cash from a bank, and withdrawals accelerate as its reserves fall below target (the panic feedback that makes a run self-reinforcing). Two matched edges move reserves and deposits together, so the balance sheet stays balanced. Select the bank and the depositor wallets, then click this bundle.",
+    "color": "#c48a3f",
+    "endpoints": [
+        {
+            "id": "bank",
+            "label": "Bank"
+        },
+        {
+            "id": "wallets",
+            "label": "Depositor wallets"
+        }
+    ],
+    "sharedParameters": [
+        {
+            "key": "withdrawalRate",
+            "name": "Withdrawal rate",
+            "symbol": "withdrawalRate",
+            "value": 0.005,
+            "unit": "1/day",
+            "mode": "constant",
+            "scope": "project"
+        },
+        {
+            "key": "panicSensitivity",
+            "name": "Panic sensitivity",
+            "symbol": "panicSensitivity",
+            "value": 4,
+            "unit": "",
+            "mode": "constant",
+            "scope": "project"
+        },
+        {
+            "key": "reserveTarget",
+            "name": "Reserve target",
+            "symbol": "reserveTarget",
+            "value": 100,
+            "unit": "M",
+            "mode": "constant",
+            "scope": "project"
+        }
+    ],
+    "edges": [
+        {
+            "name": "Withdrawals (reserves)",
+            "from": "bank",
+            "to": "wallets",
+            "bidirectional": true,
+            "ports": {
+                "source": [
+                    "reserves",
+                    "deposits"
+                ],
+                "target": "cash"
+            },
+            "output": {
+                "role": "target",
+                "state": "cash"
+            },
+            "latex": "\\mathrm{withdrawalRate} \\cdot \\mathrm{sourceDeposits} \\cdot \\left(1 + \\mathrm{panicSensitivity} \\cdot \\max\\left(0, 1 - \\frac{\\mathrm{sourceReserves}}{\\mathrm{reserveTarget}}\\right)\\right)",
+            "parameters": [
+                {
+                    "name": "Withdrawal rate",
+                    "symbol": "withdrawalRate",
+                    "shared": "withdrawalRate"
+                },
+                {
+                    "name": "Panic sensitivity",
+                    "symbol": "panicSensitivity",
+                    "shared": "panicSensitivity"
+                },
+                {
+                    "name": "Reserve target",
+                    "symbol": "reserveTarget",
+                    "shared": "reserveTarget"
+                }
+            ]
+        },
+        {
+            "name": "Withdrawals (deposits)",
+            "from": "wallets",
+            "to": "bank",
+            "ports": {
+                "source": "cash",
+                "target": [
+                    "deposits",
+                    "reserves"
+                ]
+            },
+            "output": {
+                "role": "target",
+                "state": "deposits"
+            },
+            "latex": "-\\mathrm{withdrawalRate} \\cdot \\mathrm{targetDeposits} \\cdot \\left(1 + \\mathrm{panicSensitivity} \\cdot \\max\\left(0, 1 - \\frac{\\mathrm{targetReserves}}{\\mathrm{reserveTarget}}\\right)\\right)",
+            "parameters": [
+                {
+                    "name": "Withdrawal rate",
+                    "symbol": "withdrawalRate",
+                    "shared": "withdrawalRate"
+                },
+                {
+                    "name": "Panic sensitivity",
+                    "symbol": "panicSensitivity",
+                    "shared": "panicSensitivity"
+                },
+                {
+                    "name": "Reserve target",
+                    "symbol": "reserveTarget",
+                    "shared": "reserveTarget"
+                }
+            ]
+        }
+    ]
+}

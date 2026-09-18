@@ -1,0 +1,187 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "fireSale",
+    "kind": "bundle",
+    "name": "Fire sale",
+    "domains": [
+        "finance"
+    ],
+    "description": "A bank short of reserves sells loans into a shared market at a price that falls as the market's holdings grow: loans leave the bank, buyer cash pays into its reserves, and the shortfall against book value hits its equity. Because the price is shared, one bank's distress worsens every other seller's proceeds. Select the bank and the asset market, then click this bundle.",
+    "color": "#d98b54",
+    "endpoints": [
+        {
+            "id": "bank",
+            "label": "Bank"
+        },
+        {
+            "id": "market",
+            "label": "Asset market"
+        }
+    ],
+    "sharedParameters": [
+        {
+            "key": "fireSaleRate",
+            "name": "Fire-sale rate",
+            "symbol": "fireSaleRate",
+            "value": 0.02,
+            "unit": "1/day",
+            "mode": "constant",
+            "scope": "project"
+        },
+        {
+            "key": "reserveTarget",
+            "name": "Reserve target",
+            "symbol": "reserveTarget",
+            "value": 100,
+            "unit": "M",
+            "mode": "constant",
+            "scope": "project"
+        },
+        {
+            "key": "baseHaircut",
+            "name": "Base haircut",
+            "symbol": "baseHaircut",
+            "value": 0.1,
+            "unit": "",
+            "mode": "constant",
+            "scope": "project"
+        },
+        {
+            "key": "priceImpact",
+            "name": "Price impact",
+            "symbol": "priceImpact",
+            "value": 0.0005,
+            "unit": "1/M",
+            "mode": "constant",
+            "scope": "project"
+        }
+    ],
+    "edges": [
+        {
+            "name": "Fire sale (loans)",
+            "from": "bank",
+            "to": "market",
+            "bidirectional": true,
+            "ports": {
+                "source": [
+                    "loans",
+                    "reserves"
+                ],
+                "target": "holdings"
+            },
+            "output": {
+                "role": "target",
+                "state": "holdings"
+            },
+            "latex": "\\mathrm{fireSaleRate} \\cdot \\mathrm{sourceLoans} \\cdot \\max\\left(0, 1 - \\frac{\\mathrm{sourceReserves}}{\\mathrm{reserveTarget}}\\right)",
+            "color": "#d98b54",
+            "parameters": [
+                {
+                    "name": "Fire-sale rate",
+                    "symbol": "fireSaleRate",
+                    "shared": "fireSaleRate"
+                },
+                {
+                    "name": "Reserve target",
+                    "symbol": "reserveTarget",
+                    "shared": "reserveTarget"
+                },
+                {
+                    "name": "Base haircut",
+                    "symbol": "baseHaircut",
+                    "shared": "baseHaircut"
+                },
+                {
+                    "name": "Price impact",
+                    "symbol": "priceImpact",
+                    "shared": "priceImpact"
+                }
+            ]
+        },
+        {
+            "name": "Fire sale (proceeds)",
+            "from": "market",
+            "to": "bank",
+            "bidirectional": true,
+            "ports": {
+                "source": [
+                    "cash",
+                    "holdings"
+                ],
+                "target": [
+                    "reserves",
+                    "loans"
+                ]
+            },
+            "output": {
+                "role": "target",
+                "state": "reserves"
+            },
+            "latex": "\\mathrm{fireSaleRate} \\cdot \\mathrm{targetLoans} \\cdot \\max\\left(0, 1 - \\frac{\\mathrm{targetReserves}}{\\mathrm{reserveTarget}}\\right) \\cdot \\max\\left(0, 1 - \\mathrm{baseHaircut} - \\mathrm{priceImpact} \\cdot \\mathrm{sourceHoldings}\\right)",
+            "color": "#d98b54",
+            "parameters": [
+                {
+                    "name": "Fire-sale rate",
+                    "symbol": "fireSaleRate",
+                    "shared": "fireSaleRate"
+                },
+                {
+                    "name": "Reserve target",
+                    "symbol": "reserveTarget",
+                    "shared": "reserveTarget"
+                },
+                {
+                    "name": "Base haircut",
+                    "symbol": "baseHaircut",
+                    "shared": "baseHaircut"
+                },
+                {
+                    "name": "Price impact",
+                    "symbol": "priceImpact",
+                    "shared": "priceImpact"
+                }
+            ]
+        },
+        {
+            "name": "Fire sale (loss)",
+            "from": "market",
+            "to": "bank",
+            "ports": {
+                "source": "holdings",
+                "target": [
+                    "equity",
+                    "loans",
+                    "reserves"
+                ]
+            },
+            "output": {
+                "role": "target",
+                "state": "equity"
+            },
+            "latex": "-\\mathrm{fireSaleRate} \\cdot \\mathrm{targetLoans} \\cdot \\max\\left(0, 1 - \\frac{\\mathrm{targetReserves}}{\\mathrm{reserveTarget}}\\right) \\cdot \\left(1 - \\max\\left(0, 1 - \\mathrm{baseHaircut} - \\mathrm{priceImpact} \\cdot \\mathrm{sourceHoldings}\\right)\\right)",
+            "color": "#d98b54",
+            "parameters": [
+                {
+                    "name": "Fire-sale rate",
+                    "symbol": "fireSaleRate",
+                    "shared": "fireSaleRate"
+                },
+                {
+                    "name": "Reserve target",
+                    "symbol": "reserveTarget",
+                    "shared": "reserveTarget"
+                },
+                {
+                    "name": "Base haircut",
+                    "symbol": "baseHaircut",
+                    "shared": "baseHaircut"
+                },
+                {
+                    "name": "Price impact",
+                    "symbol": "priceImpact",
+                    "shared": "priceImpact"
+                }
+            ]
+        }
+    ]
+}

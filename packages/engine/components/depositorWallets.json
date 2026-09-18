@@ -1,0 +1,20 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "depositorWallets",
+    "kind": "node",
+    "name": "Depositor wallets",
+    "domains": [
+        "finance"
+    ],
+    "description": "The cash depositors hold outside the banking system. Deposit runs move money from a bank's deposits and reserves into this cash pool.",
+    "shape": "sphere",
+    "color": "#c48a3f",
+    "states": [
+        {
+            "symbol": "cash",
+            "label": "Cash",
+            "initialValue": 0,
+            "unit": "M"
+        }
+    ]
+}

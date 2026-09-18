@@ -1,0 +1,20 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "centralBank",
+    "kind": "node",
+    "name": "Central bank",
+    "domains": [
+        "finance"
+    ],
+    "description": "A lender of last resort with a large reserve pool. Connect it to a bank with the Emergency lending bundle.",
+    "shape": "cylinder",
+    "color": "#9c83c4",
+    "states": [
+        {
+            "symbol": "reserves",
+            "label": "Reserves",
+            "initialValue": 1000,
+            "unit": "M"
+        }
+    ]
+}

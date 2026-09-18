@@ -1,0 +1,26 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "assetMarket",
+    "kind": "node",
+    "name": "Asset market",
+    "domains": [
+        "finance"
+    ],
+    "description": "Buyers of last resort for fire-sold loans: buyer cash pays for the loans a distressed bank sells, and the loans it buys accumulate as holdings that depress the price for everyone.",
+    "shape": "sphere",
+    "color": "#d98b54",
+    "states": [
+        {
+            "symbol": "cash",
+            "label": "Buyer cash",
+            "initialValue": 1000,
+            "unit": "M"
+        },
+        {
+            "symbol": "holdings",
+            "label": "Loan holdings",
+            "initialValue": 0,
+            "unit": "M"
+        }
+    ]
+}

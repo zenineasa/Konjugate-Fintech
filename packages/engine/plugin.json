@@ -5,9 +5,66 @@
     "version": "0.1.0",
     "apiVersion": 1,
     "contributes": [
-        { "kind": "component", "componentId": "commercialBank", "apiVersion": 1, "entry": "components/commercialBank.json" },
-        { "kind": "component", "componentId": "liquidityPoolAmm", "apiVersion": 1, "entry": "components/liquidityPoolAmm.json" },
-        { "kind": "component", "componentId": "liquidityFlow", "apiVersion": 1, "entry": "components/liquidityFlow.json" }
+        {
+            "kind": "component",
+            "componentId": "commercialBank",
+            "apiVersion": 1,
+            "entry": "components/commercialBank.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "depositorWallets",
+            "apiVersion": 1,
+            "entry": "components/depositorWallets.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "centralBank",
+            "apiVersion": 1,
+            "entry": "components/centralBank.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "assetMarket",
+            "apiVersion": 1,
+            "entry": "components/assetMarket.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "liquidityPoolAmm",
+            "apiVersion": 1,
+            "entry": "components/liquidityPoolAmm.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "liquidityFlow",
+            "apiVersion": 1,
+            "entry": "components/liquidityFlow.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "depositRun",
+            "apiVersion": 1,
+            "entry": "components/depositRun.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "fireSale",
+            "apiVersion": 1,
+            "entry": "components/fireSale.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "interbankLending",
+            "apiVersion": 1,
+            "entry": "components/interbankLending.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "emergencyLending",
+            "apiVersion": 1,
+            "entry": "components/emergencyLending.json"
+        }
     ],
     "permissions": []
 }
