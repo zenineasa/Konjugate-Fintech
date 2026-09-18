@@ -1,0 +1,122 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "ammArbitrage",
+    "kind": "bundle",
+    "name": "AMM arbitrage",
+    "domains": [
+        "finance"
+    ],
+    "description": "An arbitrageur trades against the pool to pull its price toward an outside reference price (a live control: drag it, or fork a run and step, ramp or pulse it to stage a price shock). It sells the pool ETH when the pool prices ETH above the reference and buys it when below, paying the pool's swap fee, so the pool's reserves move along the constant-product curve and the fee accrues to it. Select the pool, then the arbitrageur, then click this bundle.",
+    "color": "#68a9cc",
+    "endpoints": [
+        {
+            "id": "pool",
+            "label": "AMM pool"
+        },
+        {
+            "id": "arbitrageur",
+            "label": "Arbitrageur"
+        }
+    ],
+    "sharedParameters": [
+        {
+            "key": "arbitrageRate",
+            "name": "Arbitrage rate",
+            "symbol": "arbitrageRate",
+            "value": 2,
+            "unit": "1/day",
+            "mode": "constant",
+            "scope": "project"
+        },
+        {
+            "key": "swapFee",
+            "name": "Swap fee",
+            "symbol": "swapFee",
+            "value": 0.003,
+            "unit": "",
+            "mode": "constant",
+            "scope": "project"
+        },
+        {
+            "key": "referencePrice",
+            "name": "Reference price",
+            "symbol": "referencePrice",
+            "value": 2000,
+            "unit": "USDC/ETH",
+            "mode": "live",
+            "control": {
+                "minimum": 200,
+                "maximum": 4000,
+                "step": 50
+            },
+            "scope": "project"
+        }
+    ],
+    "edges": [
+        {
+            "name": "Arbitrage (ETH)",
+            "from": "pool",
+            "to": "arbitrageur",
+            "bidirectional": true,
+            "ports": {
+                "source": [
+                    "reserveX",
+                    "reserveY"
+                ],
+                "target": "eth"
+            },
+            "output": {
+                "role": "target",
+                "state": "eth"
+            },
+            "latex": "\\mathrm{arbitrageRate} \\cdot \\left(\\mathrm{sourceReserveX} - \\sqrt{\\frac{\\mathrm{sourceReserveX} \\cdot \\mathrm{sourceReserveY}}{\\mathrm{referencePrice}}}\\right)",
+            "parameters": [
+                {
+                    "name": "Arbitrage rate",
+                    "symbol": "arbitrageRate",
+                    "shared": "arbitrageRate"
+                },
+                {
+                    "name": "Reference price",
+                    "symbol": "referencePrice",
+                    "shared": "referencePrice"
+                }
+            ]
+        },
+        {
+            "name": "Arbitrage (USDC)",
+            "from": "arbitrageur",
+            "to": "pool",
+            "bidirectional": true,
+            "ports": {
+                "source": "usdc",
+                "target": [
+                    "reserveY",
+                    "reserveX"
+                ]
+            },
+            "output": {
+                "role": "target",
+                "state": "reserveY"
+            },
+            "latex": "\\left(\\mathrm{arbitrageRate} \\cdot \\left(\\mathrm{targetReserveX} - \\sqrt{\\frac{\\mathrm{targetReserveX} \\cdot \\mathrm{targetReserveY}}{\\mathrm{referencePrice}}}\\right) + \\mathrm{swapFee} \\cdot \\left|\\mathrm{arbitrageRate} \\cdot \\left(\\mathrm{targetReserveX} - \\sqrt{\\frac{\\mathrm{targetReserveX} \\cdot \\mathrm{targetReserveY}}{\\mathrm{referencePrice}}}\\right)\\right|\\right) \\cdot \\frac{\\mathrm{targetReserveY}}{\\mathrm{targetReserveX}}",
+            "parameters": [
+                {
+                    "name": "Arbitrage rate",
+                    "symbol": "arbitrageRate",
+                    "shared": "arbitrageRate"
+                },
+                {
+                    "name": "Reference price",
+                    "symbol": "referencePrice",
+                    "shared": "referencePrice"
+                },
+                {
+                    "name": "Swap fee",
+                    "symbol": "swapFee",
+                    "shared": "swapFee"
+                }
+            ]
+        }
+    ]
+}

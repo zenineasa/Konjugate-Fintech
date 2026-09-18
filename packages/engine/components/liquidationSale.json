@@ -1,0 +1,98 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "liquidationSale",
+    "kind": "bundle",
+    "name": "Liquidation sale",
+    "domains": [
+        "finance"
+    ],
+    "description": "The liquidator dumps the ETH it seized into an AMM pool at a steady rate, moving the pool's reserves along its constant-product curve: the more it sells, the lower the pool's price, which is what feeds the next round of liquidations through the oracle. Select the liquidator, then the pool, then click this bundle.",
+    "color": "#d98b54",
+    "endpoints": [
+        {
+            "id": "liquidator",
+            "label": "Liquidator"
+        },
+        {
+            "id": "pool",
+            "label": "AMM pool"
+        }
+    ],
+    "sharedParameters": [
+        {
+            "key": "sellRate",
+            "name": "Sell rate",
+            "symbol": "sellRate",
+            "value": 2,
+            "unit": "1/day",
+            "mode": "constant",
+            "scope": "project"
+        },
+        {
+            "key": "swapFee",
+            "name": "Swap fee",
+            "symbol": "swapFee",
+            "value": 0.003,
+            "unit": "",
+            "mode": "constant",
+            "scope": "project"
+        }
+    ],
+    "edges": [
+        {
+            "name": "Liquidation sale (ETH)",
+            "from": "liquidator",
+            "to": "pool",
+            "bidirectional": true,
+            "ports": {
+                "source": "eth",
+                "target": "reserveX"
+            },
+            "output": {
+                "role": "target",
+                "state": "reserveX"
+            },
+            "latex": "\\mathrm{sellRate} \\cdot \\mathrm{sourceEth}",
+            "parameters": [
+                {
+                    "name": "Sell rate",
+                    "symbol": "sellRate",
+                    "shared": "sellRate"
+                }
+            ]
+        },
+        {
+            "name": "Liquidation sale (USDC)",
+            "from": "pool",
+            "to": "liquidator",
+            "bidirectional": true,
+            "ports": {
+                "source": [
+                    "reserveY",
+                    "reserveX"
+                ],
+                "target": [
+                    "usdc",
+                    "eth"
+                ]
+            },
+            "output": {
+                "role": "target",
+                "state": "usdc"
+            },
+            "latex": "\\mathrm{sellRate} \\cdot \\mathrm{targetEth} \\cdot \\left(1 - \\mathrm{swapFee}\\right) \\cdot \\frac{\\mathrm{sourceReserveY}}{\\mathrm{sourceReserveX}}",
+            "parameters": [
+                {
+                    "name": "Sell rate",
+                    "symbol": "sellRate",
+                    "shared": "sellRate"
+                },
+                {
+                    "name": "Swap fee",
+                    "symbol": "swapFee",
+                    "shared": "swapFee"
+                }
+            ]
+        }
+    ]
+}

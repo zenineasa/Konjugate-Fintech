@@ -1,0 +1,26 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "arbitrageur",
+    "kind": "node",
+    "name": "Arbitrageur",
+    "domains": [
+        "finance"
+    ],
+    "description": "Trades against an AMM pool whenever its price drifts from the outside market, holding whatever ETH and USDC that leaves it with.",
+    "shape": "box",
+    "color": "#68a9cc",
+    "states": [
+        {
+            "symbol": "eth",
+            "label": "ETH held",
+            "initialValue": 0,
+            "unit": "ETH"
+        },
+        {
+            "symbol": "usdc",
+            "label": "USDC held",
+            "initialValue": 0,
+            "unit": "USDC"
+        }
+    ]
+}

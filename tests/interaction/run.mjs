@@ -11,7 +11,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildModels, writeNodesOnlyInterbankRun } from '../../scripts/buildModels.mjs';
+import { buildModels, writeNodesOnlyModel } from '../../scripts/buildModels.mjs';
 import { installBuiltPackages } from '../../scripts/installDev.mjs';
 import { konjugateDir } from '../../scripts/konjugatePaths.mjs';
 
@@ -19,7 +19,6 @@ const require = createRequire(join(konjugateDir, 'package.json'));
 const { _electron: electron } = require('playwright');
 const electronPath = require('electron');
 
-const targetTime = 60;
 const banks = ['Bank A', 'Bank B', 'Bank C'];
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
@@ -28,7 +27,7 @@ const scratch = await mkdtemp(join(tmpdir(), 'konjugate-fintech-'));
 const userData = join(scratch, 'userData');
 
 // Launches Konjugate on `modelPath` and hands `scenario` a small toolkit; always closes the app.
-async function withApp(modelPath, scenario) {
+async function withApp(modelPath, scenario, { targetTime = 60 } = {}) {
     const app = await electron.launch({
         executablePath: electronPath,
         args: [konjugateDir, `--user-data-dir=${userData}`, modelPath],
@@ -63,7 +62,7 @@ async function withApp(modelPath, scenario) {
             await window.click('#startRun');
             await window.waitForFunction(() => !document.querySelector('#forkHereButton').hidden, null, { timeout: 60000 });
         };
-        return await scenario({ app, window, finalSamples, runToTarget });
+        return await scenario({ app, window, finalSamples, runToTarget, targetTime });
     } finally {
         await app.close().catch(() => {});
     }
@@ -86,22 +85,22 @@ function conservationChecks(stateValue) {
     };
 }
 
-// Fork the branch at index `parent` at day 12 with the given live-parameter values (by name), run to
+// Fork the branch at index `parent` at `day` with the given live-parameter values (by name), run to
 // the target, and return the new branch's final sample.
-async function forkWith({ window, finalSamples }, parent, values) {
+async function forkWith({ window, finalSamples, targetTime }, parent, values, { day = 12, liveRows = 2 } = {}) {
     const chips = window.locator('#branchChips > *');
     if (parent > 0 || await chips.count() > 1) await chips.nth(parent).click();
     await window.evaluate((day) => {
         const timeline = document.querySelector('#resultTimeline');
         timeline.value = day;
         timeline.dispatchEvent(new Event('input', { bubbles: true }));
-    }, '12');
+    }, String(day));
     const branchesBefore = (await finalSamples()).length;
     await window.click('#forkHereButton');
     await window.waitForSelector('#forkParameterPanel:not([hidden])');
     // Each shared live parameter is one row, however many edges link to it: emergency lending drives
     // both legs of the facility, and the base haircut every bank's fire sales.
-    assert.equal(await window.locator('#forkParameterRows .liveParameterRow').count(), 2, 'Each shared live parameter should appear once');
+    assert.equal(await window.locator('#forkParameterRows .liveParameterRow').count(), liveRows, 'Each shared live parameter should appear once');
     for (const [name, value] of Object.entries(values)) {
         const input = `#forkParameterRows input[aria-label="${name} value"]`;
         await window.fill(input, String(value));
@@ -115,9 +114,27 @@ async function forkWith({ window, finalSamples }, parent, values) {
     return (await finalSamples()).at(-1);
 }
 
+// Opens the component library and returns helpers to apply bundles to a nodes-only project through
+// the real UI: select exactly `names` (first name first), click the bundle, expect its edges.
+async function bundleWiring(window, nodesOnly) {
+    const edgeCount = () => window.evaluate(() => Number(document.querySelectorAll('.modelStatus span')[1].textContent.match(/\d+/)[0]));
+    await window.click('#componentLibraryButton');
+    await window.waitForSelector('#componentLibraryPanel:not([hidden])');
+    const applyBundle = async (bundleId, names, expectedEdges) => {
+        const before = await edgeCount();
+        await window.evaluate((ids) => window.__debugTransform.selectExactly(ids), names.map((name) => nodesOnly.nodes[name]));
+        await window.click(`[data-template-id="${bundleId}"]`);
+        await window.waitForFunction(([count, expected]) => Number(document.querySelectorAll('.modelStatus span')[1].textContent.match(/\d+/)[0]) === count + expected, [before, expectedEdges], { timeout: 10000 })
+            .catch(async () => { throw new Error(`Bundle ${bundleId} on ${names.join(', ')} did not add ${expectedEdges} edges: ${await window.textContent('#componentLibraryHint')}`); });
+    };
+    return { applyBundle, edgeCount };
+}
+
 try {
     await installBuiltPackages(userData);
-    const [{ path: interbankModel, states }] = await buildModels(join(scratch, 'models'));
+    const built = await buildModels(join(scratch, 'models'));
+    const { path: interbankModel, states } = built.find((model) => model.name === 'interbankLiquidityRun');
+    const defiModel = built.find((model) => model.name === 'defiLiquidationCascade');
     const stateValue = stateValueIn(states);
     const assertConserved = conservationChecks(stateValue);
 
@@ -166,22 +183,12 @@ try {
     });
 
     // --- Scenario 2: the same model wired up from the component bundles behaves identically. ------
-    const nodesOnly = await writeNodesOnlyInterbankRun(join(scratch, 'nodesOnly.kjt'));
+    const nodesOnly = await writeNodesOnlyModel('interbankLiquidityRun', join(scratch, 'nodesOnly.kjt'));
     await withApp(nodesOnly.path, async (session) => {
         const { window, finalSamples, runToTarget } = session;
         const stateValueBundled = stateValueIn(nodesOnly.states);
-        const edgeCount = () => window.evaluate(() => Number(document.querySelectorAll('.modelStatus span')[1].textContent.match(/\d+/)[0]));
-        await window.click('#componentLibraryButton');
-        await window.waitForSelector('#componentLibraryPanel:not([hidden])');
+        const { applyBundle, edgeCount } = await bundleWiring(window, nodesOnly);
 
-        // Select exactly `names` (first name first), then click the bundle.
-        const applyBundle = async (bundleId, names, expectedEdges) => {
-            const before = await edgeCount();
-            await window.evaluate((ids) => window.__debugTransform.selectExactly(ids), names.map((name) => nodesOnly.nodes[name]));
-            await window.click(`[data-template-id="${bundleId}"]`);
-            await window.waitForFunction(([count, expected]) => Number(document.querySelectorAll('.modelStatus span')[1].textContent.match(/\d+/)[0]) === count + expected, [before, expectedEdges], { timeout: 10000 })
-                .catch(async () => { throw new Error(`Bundle ${bundleId} on ${names.join(', ')} did not add ${expectedEdges} edges: ${await window.textContent('#componentLibraryHint')}`); });
-        };
         await applyBundle('depositRun', ['Bank A', 'Depositor wallets'], 2);
         for (const bank of banks) await applyBundle('fireSale', [bank, 'Asset market'], 3);
         // Banks lend in both directions, and each bank's interbank debt is split between the other two.
@@ -213,6 +220,68 @@ try {
         }
         console.log('Bundle-wired model matches the script-built one: baseline and lending fork agree on every state.');
     });
+
+    // --- Scenario 3: the DeFi liquidation cascade holds still without a shock, and cascades with one. -
+    const defiStates = stateValueIn(defiModel.states);
+    const defiTargetTime = 30;
+    const vaultNames = ['Vault 1', 'Vault 2', 'Vault 3'];
+    // ETH is conserved across the pool, arbitrageur, liquidator and vaults; USDC held minus
+    // outstanding debt is conserved (repaid debt leaves both).
+    const assertDefiConserved = (sample, label) => {
+        const value = (name) => defiStates(sample, name);
+        const eth = value('AMM pool.reserveX') + value('Arbitrageur.eth') + value('Liquidator.eth') + vaultNames.reduce((total, vault) => total + value(`${vault}.collateral`), 0);
+        const usdc = value('AMM pool.reserveY') + value('Arbitrageur.usdc') + value('Liquidator.usdc') - vaultNames.reduce((total, vault) => total + value(`${vault}.debt`), 0);
+        assert.ok(Math.abs(eth - 600) < 1e-6, `${label}: ETH was not conserved (${eth})`);
+        assert.ok(Math.abs(usdc - 10230000) < 1e-3, `${label}: USDC minus debt was not conserved (${usdc})`);
+    };
+    const defi = await withApp(defiModel.path, async (session) => {
+        const { finalSamples, runToTarget } = session;
+        await runToTarget();
+        const [baseline] = await finalSamples();
+        assertDefiConserved(baseline, 'DeFi baseline');
+        for (const vault of vaultNames) assert.equal(defiStates(baseline, `${vault}.collateral`), 100, `${vault} must be untouched while the price holds`);
+        assert.ok(Math.abs(defiStates(baseline, 'AMM pool.reserveY') / defiStates(baseline, 'AMM pool.reserveX') - 2000) < 1e-6, 'The pool should sit at the reference price');
+
+        // Shock: the outside price steps down 20% at day 5. The most leveraged vault is liquidated straight
+        // away; its collateral sale pushes the thin pool below the outside price, which trips vault 2 too.
+        const shock = await forkWith(session, 0, { 'Reference price': 1600 }, { day: 5, liveRows: 1 });
+        assertDefiConserved(shock, 'DeFi shock');
+        assert.ok(defiStates(shock, 'Vault 3.collateral') < 1, 'The most leveraged vault should be fully liquidated');
+        assert.ok(defiStates(shock, 'Vault 3.debt') > 0, 'Its collateral should not cover its debt: the protocol is left with bad debt');
+        assert.ok(defiStates(shock, 'Vault 2.debt') < 120000 - 1000, 'Vault 2 should be liquidated by the cascade although the outside price never reached its threshold');
+        assert.equal(defiStates(shock, 'Vault 1.collateral'), 100, 'Vault 1 is safe enough to survive');
+        console.log(`DeFi cascade after a 20% price shock: vault debts ${vaultNames.map((vault) => defiStates(shock, `${vault}.debt`).toFixed(0)).join(' / ')}, collateral ${vaultNames.map((vault) => defiStates(shock, `${vault}.collateral`).toFixed(1)).join(' / ')}.`);
+        return { baseline, shock };
+    }, { targetTime: defiTargetTime });
+
+    // --- Scenario 4: the same DeFi model wired up from the component bundles behaves identically. ---
+    const defiNodesOnly = await writeNodesOnlyModel('defiLiquidationCascade', join(scratch, 'defiNodesOnly.kjt'));
+    await withApp(defiNodesOnly.path, async (session) => {
+        const { window, finalSamples, runToTarget } = session;
+        const value = stateValueIn(defiNodesOnly.states);
+        const { applyBundle, edgeCount } = await bundleWiring(window, defiNodesOnly);
+        await applyBundle('ammArbitrage', ['AMM pool', 'Arbitrageur'], 2);
+        await applyBundle('liquidationSale', ['Liquidator', 'AMM pool'], 2);
+        for (const vault of vaultNames) {
+            await applyBundle('oracleFeed', ['AMM pool', vault], 1);
+            await applyBundle('vaultLiquidation', [vault, 'Liquidator'], 3);
+        }
+        assert.equal(await edgeCount(), 2 + 2 + 3 * (1 + 3), 'The bundles should add the same 16 edges as the script-built model.');
+        await window.click('#parametersButton');
+        await window.waitForSelector('#parametersPanel:not([hidden])');
+        assert.equal(await window.textContent('#parametersSummary'), '8 parameters · 8 shared');
+
+        await runToTarget();
+        const [baseline] = await finalSamples();
+        for (const name of Object.keys(defiNodesOnly.states)) {
+            assert.ok(Math.abs(value(baseline, name) - defiStates(defi.baseline, name)) < 1e-6, `${name}: bundle-wired DeFi baseline differs from the script-built one`);
+        }
+        const shock = await forkWith(session, 0, { 'Reference price': 1600 }, { day: 5, liveRows: 1 });
+        for (const name of Object.keys(defiNodesOnly.states)) {
+            assert.ok(Math.abs(value(shock, name) - defiStates(defi.shock, name)) < 1e-6, `${name}: bundle-wired DeFi shock differs from the script-built one`);
+        }
+        console.log('Bundle-wired DeFi model matches the script-built one: baseline and shock fork agree on every state.');
+    }, { targetTime: defiTargetTime });
     console.log('Fintech interaction checks passed.');
 } finally {
     await rm(scratch, { recursive: true, force: true });

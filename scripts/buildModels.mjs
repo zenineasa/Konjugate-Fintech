@@ -117,6 +117,13 @@ class ModelBuilder {
     }
 }
 
+// Places a node built from one of the plugin's node templates, optionally overriding initial values.
+function templateNode(model, templateId, name, position, initialValues = {}) {
+    const template = bundleTemplates[templateId];
+    return model.node(name, template.name, position, template.shape, template.color,
+        template.states.map((state) => [state.symbol, state.label, initialValues[state.symbol] ?? state.initialValue, state.unit]));
+}
+
 // Interbank liquidity, fire-sale and default cascade. Three banks share reserves through
 // interbank lending, depositors run on bank A, banks short of reserves fire-sell loans into a
 // shared market, and a bank whose equity turns negative defaults on its interbank debt, passing
@@ -129,22 +136,16 @@ class ModelBuilder {
 // and a live "Base haircut" let you fork the run mid-crisis with a policy response or a fresh shock.
 function interbankLiquidityRun({ nodesOnly = false } = {}) {
     const model = new ModelBuilder();
-    const bankTemplate = bundleTemplates.commercialBank;
-    const bankStates = () => bankTemplate.states.map((state) => [state.symbol, state.label, state.initialValue, state.unit]);
-    const bankA = model.node('Bank A', 'Commercial bank', [-3, 0, 0], 'box', bankTemplate.color, bankStates());
-    const bankB = model.node('Bank B', 'Commercial bank', [0, 2, 0], 'box', bankTemplate.color, bankStates());
-    const bankC = model.node('Bank C', 'Commercial bank', [0, -2, 0], 'box', bankTemplate.color, bankStates());
+    const bankA = templateNode(model, 'commercialBank', 'Bank A', [-3, 0, 0]);
+    const bankB = templateNode(model, 'commercialBank', 'Bank B', [0, 2, 0]);
+    const bankC = templateNode(model, 'commercialBank', 'Bank C', [0, -2, 0]);
     const banks = [bankA, bankB, bankC];
-    const node = (id, name, position) => {
-        const template = bundleTemplates[id];
-        return model.node(name, template.name, position, template.shape, template.color, template.states.map((state) => [state.symbol, state.label, state.initialValue, state.unit]));
-    };
-    const wallets = node('depositorWallets', 'Depositor wallets', [-6, 0, 0]);
-    const centralBank = node('centralBank', 'Central bank', [3, 0, 0]);
-    const market = node('assetMarket', 'Asset market', [0, 0, 3]);
+    const wallets = templateNode(model, 'depositorWallets', 'Depositor wallets', [-6, 0, 0]);
+    const centralBank = templateNode(model, 'centralBank', 'Central bank', [3, 0, 0]);
+    const market = templateNode(model, 'assetMarket', 'Asset market', [0, 0, 3]);
     // Just the six nodes, no edges: the starting point for wiring the same model up with the
     // plugin's component bundles in the app instead (see tests/interaction/run.mjs).
-    if (nodesOnly) return finish();
+    if (nodesOnly) return finish(model);
 
     model.applyBundle(bundleTemplates.depositRun, { bank: bankA, wallets });
     for (const bank of banks) model.applyBundle(bundleTemplates.fireSale, { bank, market });
@@ -157,20 +158,50 @@ function interbankLiquidityRun({ nodesOnly = false } = {}) {
         }
     }
     model.applyBundle(bundleTemplates.emergencyLending, { centralBank, bank: bankA });
-    return finish();
-
-    function finish() {
-        const ids = Object.fromEntries(model.nodes.flatMap((node) => node.states.map((state) => [`${node.name}.${state.symbol}`, state.id])));
-        // Time is in days (the engine's "seconds" are just the model's time unit).
-        return { document: model.document({ globalTimeStep: 0.1, outputInterval: 0.5 }), states: ids, nodes: Object.fromEntries(model.nodes.map((node) => [node.name, node.id])) };
-    }
+    return finish(model);
 }
 
-const models = { interbankLiquidityRun: () => interbankLiquidityRun() };
+function finish(model) {
+    const ids = Object.fromEntries(model.nodes.flatMap((node) => node.states.map((state) => [`${node.name}.${state.symbol}`, state.id])));
+    // Time is in days (the engine's "seconds" are just the model's time unit).
+    return { document: model.document({ globalTimeStep: 0.1, outputInterval: 0.5 }), states: ids, nodes: Object.fromEntries(model.nodes.map((node) => [node.name, node.id])) };
+}
 
-// The same six nodes with no edges, written to `path`, for tests that wire the model up themselves.
-export async function writeNodesOnlyInterbankRun(path) {
-    const { document, states, nodes } = interbankLiquidityRun({ nodesOnly: true });
+// DeFi liquidation cascade. An AMM pool of ETH and USDC is kept near an outside reference price by
+// an arbitrageur. Three lending vaults (increasingly leveraged) read their collateral price from
+// the pool's own spot price, so when the reference price falls the pool follows, the riskiest vault
+// becomes liquidatable, the liquidator seizes its ETH and sells it back into the pool, the pool's
+// price falls further, and the next vault tips over. The reference price is a live control: the
+// baseline holds it at 2000 and nothing happens; fork the run and step, ramp or pulse it to stage
+// the shock. ETH is conserved across the pool, arbitrageur, liquidator and vaults, and USDC held
+// minus outstanding debt is conserved (repaid debt leaves both).
+function defiLiquidationCascade({ nodesOnly = false } = {}) {
+    const model = new ModelBuilder();
+    // A deliberately thin pool (about $1.2M of liquidity, no deeper than the vaults' collateral): a
+    // realistic small-DEX oracle, and what lets liquidation sales push the price below the outside one.
+    const pool = templateNode(model, 'liquidityPoolAmm', 'AMM pool', [0, 0, 0], { reserveX: 300, reserveY: 600000 });
+    const arbitrageur = templateNode(model, 'arbitrageur', 'Arbitrageur', [-4, 0, 0]);
+    const liquidator = templateNode(model, 'liquidator', 'Liquidator', [4, 0, 0]);
+    // Leverage rises from vault 1 to vault 3: with a 0.8 threshold they become liquidatable when the
+    // oracle price falls below 1250, 1500 and 1875 respectively.
+    const vaults = [100000, 120000, 150000].map((debt, index) =>
+        templateNode(model, 'lendingVault', `Vault ${index + 1}`, [0, 3 - index * 3, 0], { debt }));
+    if (nodesOnly) return finish(model);
+
+    model.applyBundle(bundleTemplates.ammArbitrage, { pool, arbitrageur });
+    model.applyBundle(bundleTemplates.liquidationSale, { liquidator, pool });
+    for (const vault of vaults) {
+        model.applyBundle(bundleTemplates.oracleFeed, { pool, vault });
+        model.applyBundle(bundleTemplates.vaultLiquidation, { vault, liquidator });
+    }
+    return finish(model);
+}
+
+const models = { interbankLiquidityRun: () => interbankLiquidityRun(), defiLiquidationCascade: () => defiLiquidationCascade() };
+
+// A model's nodes with no edges, written to `path`, for tests that wire the model up themselves.
+export async function writeNodesOnlyModel(name, path) {
+    const { document, states, nodes } = { interbankLiquidityRun, defiLiquidationCascade }[name]({ nodesOnly: true });
     await writeFile(path, await encodeProjectFile(JSON.stringify(document, null, 2)));
     return { path, states, nodes };
 }

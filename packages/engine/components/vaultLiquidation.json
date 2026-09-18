@@ -1,0 +1,158 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "vaultLiquidation",
+    "kind": "bundle",
+    "name": "Vault liquidation",
+    "domains": [
+        "finance"
+    ],
+    "description": "When a vault's debt exceeds what its collateral supports (liquidation threshold times collateral value at the oracle price), the liquidator repays part of the debt and seizes collateral worth the repayment plus a bonus. The repayment is capped by the vault's remaining debt and by the collateral it can still seize, so a fully liquidated vault runs down toward zero rather than below it. Three matched edges move the debt, the liquidator's USDC and the collateral together. Select the vault, then the liquidator, then click this bundle.",
+    "color": "#c46a6a",
+    "endpoints": [
+        {
+            "id": "vault",
+            "label": "Lending vault"
+        },
+        {
+            "id": "liquidator",
+            "label": "Liquidator"
+        }
+    ],
+    "sharedParameters": [
+        {
+            "key": "closeRate",
+            "name": "Close rate",
+            "symbol": "closeRate",
+            "value": 3,
+            "unit": "1/day",
+            "mode": "constant",
+            "scope": "project"
+        },
+        {
+            "key": "liquidationThreshold",
+            "name": "Liquidation threshold",
+            "symbol": "liquidationThreshold",
+            "value": 0.8,
+            "unit": "",
+            "mode": "constant",
+            "scope": "project"
+        },
+        {
+            "key": "liquidationBonus",
+            "name": "Liquidation bonus",
+            "symbol": "liquidationBonus",
+            "value": 0.08,
+            "unit": "",
+            "mode": "constant",
+            "scope": "project"
+        }
+    ],
+    "edges": [
+        {
+            "name": "Liquidation (debt repaid)",
+            "from": "liquidator",
+            "to": "vault",
+            "ports": {
+                "source": "usdc",
+                "target": [
+                    "debt",
+                    "collateral",
+                    "oraclePrice"
+                ]
+            },
+            "output": {
+                "role": "target",
+                "state": "debt"
+            },
+            "latex": "-\\mathrm{closeRate} \\cdot \\min\\left(\\max\\left(0, \\mathrm{targetDebt} - \\mathrm{liquidationThreshold} \\cdot \\mathrm{targetCollateral} \\cdot \\mathrm{targetOraclePrice}\\right), \\min\\left(\\mathrm{targetDebt}, \\frac{\\mathrm{targetCollateral} \\cdot \\mathrm{targetOraclePrice}}{1 + \\mathrm{liquidationBonus}}\\right)\\right)",
+            "parameters": [
+                {
+                    "name": "Close rate",
+                    "symbol": "closeRate",
+                    "shared": "closeRate"
+                },
+                {
+                    "name": "Liquidation threshold",
+                    "symbol": "liquidationThreshold",
+                    "shared": "liquidationThreshold"
+                },
+                {
+                    "name": "Liquidation bonus",
+                    "symbol": "liquidationBonus",
+                    "shared": "liquidationBonus"
+                }
+            ]
+        },
+        {
+            "name": "Liquidation (USDC paid)",
+            "from": "liquidator",
+            "to": "vault",
+            "ports": {
+                "source": "usdc",
+                "target": [
+                    "debt",
+                    "collateral",
+                    "oraclePrice"
+                ]
+            },
+            "output": {
+                "role": "source",
+                "state": "usdc"
+            },
+            "latex": "-\\mathrm{closeRate} \\cdot \\min\\left(\\max\\left(0, \\mathrm{targetDebt} - \\mathrm{liquidationThreshold} \\cdot \\mathrm{targetCollateral} \\cdot \\mathrm{targetOraclePrice}\\right), \\min\\left(\\mathrm{targetDebt}, \\frac{\\mathrm{targetCollateral} \\cdot \\mathrm{targetOraclePrice}}{1 + \\mathrm{liquidationBonus}}\\right)\\right)",
+            "parameters": [
+                {
+                    "name": "Close rate",
+                    "symbol": "closeRate",
+                    "shared": "closeRate"
+                },
+                {
+                    "name": "Liquidation threshold",
+                    "symbol": "liquidationThreshold",
+                    "shared": "liquidationThreshold"
+                },
+                {
+                    "name": "Liquidation bonus",
+                    "symbol": "liquidationBonus",
+                    "shared": "liquidationBonus"
+                }
+            ]
+        },
+        {
+            "name": "Liquidation (collateral seized)",
+            "from": "vault",
+            "to": "liquidator",
+            "bidirectional": true,
+            "ports": {
+                "source": [
+                    "collateral",
+                    "debt",
+                    "oraclePrice"
+                ],
+                "target": "eth"
+            },
+            "output": {
+                "role": "target",
+                "state": "eth"
+            },
+            "latex": "\\frac{\\left(1 + \\mathrm{liquidationBonus}\\right) \\cdot \\mathrm{closeRate} \\cdot \\min\\left(\\max\\left(0, \\mathrm{sourceDebt} - \\mathrm{liquidationThreshold} \\cdot \\mathrm{sourceCollateral} \\cdot \\mathrm{sourceOraclePrice}\\right), \\min\\left(\\mathrm{sourceDebt}, \\frac{\\mathrm{sourceCollateral} \\cdot \\mathrm{sourceOraclePrice}}{1 + \\mathrm{liquidationBonus}}\\right)\\right)}{\\mathrm{sourceOraclePrice}}",
+            "parameters": [
+                {
+                    "name": "Close rate",
+                    "symbol": "closeRate",
+                    "shared": "closeRate"
+                },
+                {
+                    "name": "Liquidation threshold",
+                    "symbol": "liquidationThreshold",
+                    "shared": "liquidationThreshold"
+                },
+                {
+                    "name": "Liquidation bonus",
+                    "symbol": "liquidationBonus",
+                    "shared": "liquidationBonus"
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,32 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "lendingVault",
+    "kind": "node",
+    "name": "Lending vault",
+    "domains": [
+        "finance"
+    ],
+    "description": "A borrower's position: ETH collateral posted against USDC debt, priced by an oracle the vault tracks (here a lagged read of an AMM pool's spot price).",
+    "shape": "box",
+    "color": "#2f6970",
+    "states": [
+        {
+            "symbol": "collateral",
+            "label": "Collateral",
+            "initialValue": 100,
+            "unit": "ETH"
+        },
+        {
+            "symbol": "debt",
+            "label": "Debt",
+            "initialValue": 120000,
+            "unit": "USDC"
+        },
+        {
+            "symbol": "oraclePrice",
+            "label": "Oracle price",
+            "initialValue": 2000,
+            "unit": "USDC/ETH"
+        }
+    ]
+}

@@ -3,12 +3,24 @@
     "id": "liquidityPoolAmm",
     "kind": "node",
     "name": "AMM liquidity pool",
-    "domains": ["finance"],
-    "description": "A constant-product automated market maker pool holding two token reserves. The spot price is the ratio of the reserves.",
+    "domains": [
+        "finance"
+    ],
+    "description": "A constant-product automated market maker pool holding an ETH reserve and a USDC reserve. Its spot price is the ratio of the reserves, and it keeps the product of the reserves constant except for the fees traders pay.",
     "shape": "sphere",
     "color": "#9c83c4",
     "states": [
-        { "symbol": "reserveX", "label": "Reserve X", "initialValue": 1000, "unit": "tokens" },
-        { "symbol": "reserveY", "label": "Reserve Y", "initialValue": 2000000, "unit": "tokens" }
+        {
+            "symbol": "reserveX",
+            "label": "ETH reserve",
+            "initialValue": 1000,
+            "unit": "ETH"
+        },
+        {
+            "symbol": "reserveY",
+            "label": "USDC reserve",
+            "initialValue": 2000000,
+            "unit": "USDC"
+        }
     ]
 }

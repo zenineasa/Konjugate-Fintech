@@ -1,0 +1,58 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "oracleFeed",
+    "kind": "bundle",
+    "name": "AMM price oracle",
+    "domains": [
+        "finance"
+    ],
+    "description": "A lending vault reads its collateral price from an AMM pool's spot price with a lag. Using a thin pool as the price source is a real DeFi failure mode: anything that moves the pool moves the vault's view of its own health. Select the pool, then the vault, then click this bundle.",
+    "color": "#9c83c4",
+    "endpoints": [
+        {
+            "id": "pool",
+            "label": "AMM pool"
+        },
+        {
+            "id": "vault",
+            "label": "Lending vault"
+        }
+    ],
+    "sharedParameters": [
+        {
+            "key": "oracleLag",
+            "name": "Oracle update rate",
+            "symbol": "oracleLag",
+            "value": 3,
+            "unit": "1/day",
+            "mode": "constant",
+            "scope": "project"
+        }
+    ],
+    "edges": [
+        {
+            "name": "Oracle price",
+            "from": "pool",
+            "to": "vault",
+            "ports": {
+                "source": [
+                    "reserveX",
+                    "reserveY"
+                ],
+                "target": "oraclePrice"
+            },
+            "output": {
+                "role": "target",
+                "state": "oraclePrice"
+            },
+            "latex": "\\mathrm{oracleLag} \\cdot \\left(\\frac{\\mathrm{sourceReserveY}}{\\mathrm{sourceReserveX}} - \\mathrm{targetOraclePrice}\\right)",
+            "parameters": [
+                {
+                    "name": "Oracle update rate",
+                    "symbol": "oracleLag",
+                    "shared": "oracleLag"
+                }
+            ]
+        }
+    ]
+}

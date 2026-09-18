@@ -1,0 +1,26 @@
+{
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "id": "liquidator",
+    "kind": "node",
+    "name": "Liquidator",
+    "domains": [
+        "finance"
+    ],
+    "description": "A bot with a large USDC balance that repays unhealthy vaults' debt in exchange for their collateral at a discount, then sells that collateral into an AMM pool.",
+    "shape": "cylinder",
+    "color": "#c46a6a",
+    "states": [
+        {
+            "symbol": "eth",
+            "label": "ETH held",
+            "initialValue": 0,
+            "unit": "ETH"
+        },
+        {
+            "symbol": "usdc",
+            "label": "USDC held",
+            "initialValue": 10000000,
+            "unit": "USDC"
+        }
+    ]
+}

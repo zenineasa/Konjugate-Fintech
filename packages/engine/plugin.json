@@ -70,6 +70,48 @@
             "componentId": "interbankDefault",
             "apiVersion": 1,
             "entry": "components/interbankDefault.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "arbitrageur",
+            "apiVersion": 1,
+            "entry": "components/arbitrageur.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "liquidator",
+            "apiVersion": 1,
+            "entry": "components/liquidator.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "lendingVault",
+            "apiVersion": 1,
+            "entry": "components/lendingVault.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "ammArbitrage",
+            "apiVersion": 1,
+            "entry": "components/ammArbitrage.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "oracleFeed",
+            "apiVersion": 1,
+            "entry": "components/oracleFeed.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "vaultLiquidation",
+            "apiVersion": 1,
+            "entry": "components/vaultLiquidation.json"
+        },
+        {
+            "kind": "component",
+            "componentId": "liquidationSale",
+            "apiVersion": 1,
+            "entry": "components/liquidationSale.json"
         }
     ],
     "permissions": []
