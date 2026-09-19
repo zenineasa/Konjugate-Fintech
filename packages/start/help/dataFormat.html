@@ -28,6 +28,18 @@ Birch Bank,Cedar Bank,1800</pre>
 <h2>Without an exposures file</h2>
 <p>Bilateral exposures are often confidential. If you leave the exposures file out but give each institution's <code>interbank_assets</code> and <code>interbank_liabilities</code>, the model estimates who lent to whom by proportional allocation: each institution's lending is spread across the others in proportion to their borrowing. This is the standard fallback in the literature, and it tends to understate how concentrated real exposures are, so treat contagion results as indicative. The window says whenever it has done this.</p>
 
+<h2>Files saved from Excel</h2>
+<p>The files are read as text (CSV), so save from your spreadsheet with <b>Save as → CSV</b>. The following are handled automatically, and the window tells you when it relied on one of them:</p>
+<ul>
+<li><b>Separators:</b> commas, semicolons or tabs (Excel in many European locales writes semicolons), and a leading <code>sep=;</code> line.</li>
+<li><b>Decimal commas:</b> if the numbers look like <code>1.234,5</code> or <code>12,5</code> and nothing looks like <code>1,234.5</code>, commas are read as decimals. Thousands separators, spaces and currency symbols (€ $ £ ¥, or EUR, USD, GBP) are ignored, and <code>(1,234)</code> is read as negative, which is then reported because balances cannot be negative.</li>
+<li><b>Unit notes in headings:</b> <code>cash_and_reserves (EUR m)</code> is the same column as <code>cash_and_reserves</code>.</li>
+<li><b>Encodings:</b> UTF-8, UTF-16 with a byte-order mark, and Windows-1252 (Excel's "CSV" on Windows) are read; a file that is not UTF-8 is flagged so you can check that accented names look right.</li>
+</ul>
+
+<h2>How large a network can be</h2>
+<p>Between 2 and 40 institutions. With a supplied exposures file, each pair that has a loan gets a set of links, so the model has roughly 7 relationships per loan plus about 7 per institution; on a typical laptop, 40 institutions and a few hundred exposures import in under a second and run for 60 days in about a second. When exposures are estimated, each institution keeps its 10 largest counterparties in each direction to keep the network readable. Models with more than 150 relationships open in the Konjugate canvas with relationship labels hidden; the Edges button in the Details control brings them back.</p>
+
 <h2>What is checked</h2>
 <table>
 <tr><th>Check</th><th>Message you will see</th></tr>

@@ -143,3 +143,35 @@ test('the sample model validates, runs, conserves money, and a run on one bank s
         assert.ok(Math.abs(value('reserves') + value('loans') + value('claims') - value('deposits') - value('equity') - value('borrowing')) < 1e-3 * bank.assets, `${bank.name} balance sheet is off`);
     }
 });
+
+test('files written by a European spreadsheet import: semicolons, decimal commas, currency symbols, unit notes and sep= lines', async () => {
+    const semicolon = 'sep=;\ninstitution;cash_and_reserves (EUR m);loans_and_securities;interbank_assets;deposits_and_other_liabilities;interbank_liabilities;equity\n'
+        + 'Alpha;"€ 10,5";80;0;"80,5";0;10\nBeta;10;"1.080,5";0;"1.080";0;"10,5"\n';
+    const result = await run(semicolon);
+    assert.equal(result.ok, true, JSON.stringify(result.report.errors));
+    const alpha = result.document.nodes.find((node) => node.name === 'Alpha');
+    assert.equal(alpha.states.find((state) => state.symbol === 'reserves').initialValue, 10.5);
+    assert.equal(result.document.nodes.find((node) => node.name === 'Beta').states.find((state) => state.symbol === 'loans').initialValue, 1080.5);
+    assert.ok(result.report.warnings.some((warning) => /separated by semicolons/.test(warning.message)));
+    assert.ok(result.report.warnings.some((warning) => /decimal comma/.test(warning.message)));
+    // Line numbers still match what the spreadsheet shows, even with the sep= line above the header.
+    const broken = await run(semicolon.replace('Alpha;"€ 10,5"', 'Alpha;"€ ten"'));
+    assert.equal(broken.report.errors[0].line, 3);
+});
+
+test('tab-separated files, quoted names and accounting negatives are understood', async () => {
+    const tabs = `${header.replaceAll(',', '\t')}"Alpha, Inc"\t10\t80\t0\t80\t0\t10\nBeta\t10\t80\t0\t80\t0\t10\n`;
+    const result = await run(tabs);
+    assert.equal(result.ok, true, JSON.stringify(result.report.errors));
+    assert.ok(result.document.nodes.some((node) => node.name === 'Alpha, Inc'));
+    const negative = await run(`${header}Alpha,10,80,0,80,0,(5)\nBeta,10,80,0,80,0,10\n`);
+    assert.match(negative.report.errors[0].message, /equity is negative/);
+});
+
+test('a non-UTF-8 file is flagged so accented names can be checked', async () => {
+    const result = await importData({
+        files: [{ role: 'institutions', name: 'institutions.csv', encoding: 'windows-1252', text: `${header}Crédit A,10,80,0,80,0,10\nBanque B,10,80,0,80,0,10\n` }], helpers
+    });
+    assert.equal(result.ok, true);
+    assert.ok(result.report.warnings.some((warning) => /windows-1252/.test(warning.message)));
+});

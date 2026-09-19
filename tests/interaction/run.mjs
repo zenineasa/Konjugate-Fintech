@@ -346,6 +346,25 @@ try {
         assert.match(problems, /Alpha: assets 90 do not equal liabilities and equity 95/);
         assert.equal(await start.locator('.step[data-step="scenario"]').isDisabled(), true, 'No model is built from a file with errors.');
 
+        // A file as a European spreadsheet writes it: semicolons, thousands dots, decimal commas, a euro sign, and
+        // a Windows-1252 encoding for the accented name. It imports, and the window says how it was read.
+        const european = (await readFile(join(samplesDirectory, 'institutions.csv'), 'utf8')).trim().split('\n').map((line, index) => {
+            if (index === 0) return line.replaceAll(',', ';').replace('cash_and_reserves', 'cash_and_reserves (EUR m)');
+            const [name, ...numbers] = line.split(',');
+            return [name === 'Alder Bank' ? 'Alder Banque Créditée' : name, ...numbers.map((value, column) => `${column === 0 ? '€ ' : ''}${Number(value).toLocaleString('de-DE')},0`)].join(';');
+        }).join('\n');
+        await writeFile(join(badDirectory, 'european.csv'), Buffer.from(`sep=;\n${european}\n`.replaceAll('€', '\u0080'), 'latin1'));
+        await answer(join(badDirectory, 'european.csv'));
+        await start.click('[data-choose="institutions"]');
+        await start.click('#checkData');
+        await start.waitForSelector('#importResult .notice.ok, #importResult .notice.error, #importStatus .notice.error');
+        assert.equal(await start.locator('.notice.error').count(), 0, await start.locator('.notice.error').allTextContents().then((texts) => texts.join(' | ')));
+        const notes = await start.textContent('#importResult .notice.warning');
+        assert.match(notes, /separated by semicolons/);
+        assert.match(notes, /decimal comma/);
+        assert.match(notes, /windows-1252/);
+        assert.match(await start.textContent('#importResult tbody'), /Alder Banque Créditée/, 'The accented name survives the Windows-1252 decoding.');
+
         // The real files import cleanly.
         await answer(join(samplesDirectory, 'institutions.csv'));
         await start.click('[data-choose="institutions"]');

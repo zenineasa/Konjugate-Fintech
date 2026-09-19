@@ -7,7 +7,7 @@
 // The format is documented in help/dataFormat.html and is a first guess to be corrected with feedback
 // from real users; nothing here is calibrated to a real institution.
 
-import { normalizeHeading, parseCsv } from '../lib/csv.mjs';
+import { detectDecimalSeparator, normalizeHeading, parseCsv, parseLocalizedNumber } from '../lib/csv.mjs';
 import { NetworkBuilder, symbolFragment } from '../lib/networkBuilder.mjs';
 
 const maximumInstitutions = 40;
@@ -49,19 +49,29 @@ function locateColumns(header, wanted) {
     return found;
 }
 
-function parseNumber(text) {
-    const cleaned = String(text ?? '').replace(/[\s,_]/g, '');
-    if (cleaned === '') return { blank: true };
-    const value = Number(cleaned);
+function parseNumber(text, decimal = '.') {
+    if (String(text ?? '').trim() === '') return { blank: true };
+    const value = parseLocalizedNumber(text, decimal);
     return Number.isFinite(value) ? { value } : { invalid: true };
+}
+
+const delimiterNames = { ',': 'commas', ';': 'semicolons', '\t': 'tabs' };
+
+// Notes on how a file was read when that was not the plain default, so a surprising result can be traced
+// to an assumption the user can check.
+function readingNotes(fileName, file, parsed, decimal) {
+    const notes = [];
+    if (parsed.delimiter !== ',') notes.push(`${fileName} was read as separated by ${delimiterNames[parsed.delimiter]}.`);
+    if (decimal === ',') notes.push(`${fileName} was read with a decimal comma (1.234,5 means 1234.5).`);
+    if (file.encoding && file.encoding !== 'utf-8') notes.push(`${fileName} is not UTF-8 text and was read as ${file.encoding}; check that names with accents look right.`);
+    return notes;
 }
 
 // Iterative proportional fitting with a zero diagonal: the maximum-entropy-style estimate of who lent
 // to whom when only each institution's total interbank assets and liabilities are known, the
 // standard fallback when the bilateral matrix is confidential (see the data-format guide).
-function estimateExposures(assets, liabilities) {
+function fitExposures(matrix, assets, liabilities) {
     const size = assets.length;
-    const matrix = assets.map((lent, row) => liabilities.map((borrowed, column) => (row === column ? 0 : lent * borrowed)));
     for (let iteration = 0; iteration < 500; iteration += 1) {
         for (let row = 0; row < size; row += 1) {
             const sum = matrix[row].reduce((total, value) => total + value, 0);
@@ -73,6 +83,30 @@ function estimateExposures(assets, liabilities) {
         }
     }
     return matrix;
+}
+
+// The estimate spreads every institution's lending across all the others, which no real interbank market
+// does and which makes a large network needlessly dense (and slow to draw). Each institution keeps only its
+// largest counterparties in each direction, and the surviving links are refitted to the same totals.
+const estimatedCounterpartyLimit = 10;
+function estimateExposures(assets, liabilities) {
+    const dense = fitExposures(assets.map((lent, row) => liabilities.map((borrowed, column) => (row === column ? 0 : lent * borrowed))), assets, liabilities);
+    const size = assets.length;
+    if (size - 1 <= estimatedCounterpartyLimit) return dense;
+    const keep = dense.map((row) => row.map(() => false));
+    const largest = (indexes, valueOf) => indexes.sort((left, right) => valueOf(right) - valueOf(left)).slice(0, estimatedCounterpartyLimit);
+    for (let lender = 0; lender < size; lender += 1) {
+        for (const borrower of largest([...dense[lender].keys()].filter((column) => column !== lender), (column) => dense[lender][column])) keep[lender][borrower] = true;
+    }
+    for (let borrower = 0; borrower < size; borrower += 1) {
+        for (const lender of largest([...dense.keys()].filter((row) => row !== borrower), (row) => dense[row][borrower])) keep[lender][borrower] = true;
+    }
+    const pruned = fitExposures(dense.map((row, lender) => row.map((value, borrower) => (keep[lender][borrower] ? value : 0))), assets, liabilities);
+    const total = (matrix) => matrix.reduce((sum, row) => sum + row.reduce((inner, value) => inner + value, 0), 0);
+    const supports = (matrix) => matrix.every((row, lender) => assets[lender] === 0 || row.some((value) => value > 0)) &&
+        liabilities.every((borrowed, column) => borrowed === 0 || matrix.some((row) => row[column] > 0));
+    // Only use the pruned network if it still carries (almost) all the lending and reaches every institution.
+    return supports(pruned) && Math.abs(total(pruned) - total(dense)) < 0.005 * total(dense) ? pruned : dense;
 }
 
 export default async function importData({ files, helpers }) {
@@ -95,6 +129,9 @@ export default async function importData({ files, helpers }) {
     for (const key of ['institution', 'cash', 'loans', 'deposits']) {
         if (located[key] === undefined) fail(institutionsName, 1, canonicalNames[key], `The column "${canonicalNames[key]}" is missing. Headings found: ${parsed.header.join(', ') || 'none'}.`);
     }
+    const numericKeys = ['cash', 'loans', 'interbankAssets', 'deposits', 'interbankLiabilities', 'equity'];
+    const institutionsDecimal = detectDecimalSeparator(parsed.rows.flatMap(({ values }) => numericKeys.filter((key) => located[key] !== undefined).map((key) => values[located[key]])));
+    for (const note of readingNotes(institutionsName, institutionsFile, parsed, institutionsDecimal)) warn(institutionsName, null, note);
     const hasInterbankAssetsColumn = located.interbankAssets !== undefined;
     const hasInterbankLiabilitiesColumn = located.interbankLiabilities !== undefined;
     const institutions = [];
@@ -107,7 +144,7 @@ export default async function importData({ files, helpers }) {
             const record = { name, line, blankEquity: false };
             for (const key of ['cash', 'loans', 'deposits', 'interbankAssets', 'interbankLiabilities', 'equity']) {
                 if (located[key] === undefined) continue;
-                const number = parseNumber(values[located[key]]);
+                const number = parseNumber(values[located[key]], institutionsDecimal);
                 if (number.blank) {
                     if (key === 'equity') record.blankEquity = true;
                     else if (['cash', 'loans', 'deposits'].includes(key)) { record.invalid = true; fail(institutionsName, line, canonicalNames[key], `${name}: ${canonicalNames[key]} is blank.`); }
@@ -132,6 +169,8 @@ export default async function importData({ files, helpers }) {
         for (const key of ['lender', 'borrower', 'amount']) {
             if (columns[key] === undefined) fail(exposuresName, 1, canonicalNames[key], `The column "${canonicalNames[key]}" is missing. Headings found: ${parsedExposures.header.join(', ') || 'none'}.`);
         }
+        const exposuresDecimal = columns.amount === undefined ? '.' : detectDecimalSeparator(parsedExposures.rows.map(({ values }) => values[columns.amount]));
+        for (const note of readingNotes(exposuresName, exposuresFile, parsedExposures, exposuresDecimal)) warn(exposuresName, null, note);
         if (!errors.length) {
             const size = institutions.length;
             const index = new Map(institutions.map((record, position) => [record.name.toLowerCase(), position]));
@@ -143,7 +182,7 @@ export default async function importData({ files, helpers }) {
                 if (lender === undefined) { fail(exposuresName, line, 'lender', `"${String(values[columns.lender]).trim()}" is not in the institutions file.`); continue; }
                 if (borrower === undefined) { fail(exposuresName, line, 'borrower', `"${String(values[columns.borrower]).trim()}" is not in the institutions file.`); continue; }
                 if (lender === borrower) { fail(exposuresName, line, 'borrower', `${institutions[lender].name} cannot lend to itself.`); continue; }
-                const amount = parseNumber(values[columns.amount]);
+                const amount = parseNumber(values[columns.amount], exposuresDecimal);
                 if (amount.blank || amount.invalid) { fail(exposuresName, line, 'amount', `"${values[columns.amount] ?? ''}" is not a number.`); continue; }
                 if (!(amount.value > 0)) { fail(exposuresName, line, 'amount', `The amount must be more than zero (found ${format(amount.value)}).`); continue; }
                 const key = `${lender}:${borrower}`;
@@ -184,7 +223,7 @@ export default async function importData({ files, helpers }) {
                 const estimated = estimateExposures(institutions.map((record) => record.interbankAssets), institutions.map((record) => record.interbankLiabilities * scale));
                 matrix = estimated;
                 exposuresEstimated = true;
-                warn(exposuresName, null, 'No exposures file was given, so bilateral exposures are estimated from each institution\'s interbank totals (proportional allocation). Treat contagion results as indicative, and supply real exposures when you have them.');
+                warn(exposuresName, null, `No exposures file was given, so bilateral exposures are estimated from each institution's interbank totals (proportional allocation${institutions.length - 1 > estimatedCounterpartyLimit ? `, keeping each institution's ${estimatedCounterpartyLimit} largest counterparties in each direction` : ''}). Treat contagion results as indicative, and supply real exposures when you have them.`);
             }
         } else {
             for (const record of institutions) { record.interbankAssets ??= 0; record.interbankLiabilities ??= 0; }
