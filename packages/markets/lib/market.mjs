@@ -264,3 +264,37 @@ export function preferTogetherDirection(links, volatility) {
         return { ...link, preferred: pair.length === 1 || intoMoreVolatile };
     });
 }
+
+// Coefficients of a series' same-bar changes on the same-bar changes of the sources kept for it, fitted together by least squares over
+// the last `bars` bars (with a constant, which is then dropped: a link carries no drift). With one source this is the plain regression
+// slope, its beta. The coefficients that come with a link from the engine are fitted against every other series at once, so once
+// some of those links are dropped they no longer mean what they meant; this refits them against only the links that are kept.
+export function fitSameBar(columns, target, sources, bars = 250) {
+    const rows = Math.min(bars, columns[target].length);
+    if (!sources.length || rows < sources.length + 10) return sources.map(() => 0);
+    const take = (column) => column.slice(-rows);
+    const y = take(columns[target]);
+    const xs = sources.map((source) => take(columns[source]));
+    const mean = (values) => values.reduce((sum, value) => sum + value, 0) / values.length;
+    const my = mean(y);
+    const mx = xs.map(mean);
+    const size = sources.length;
+    // The normal equations, solved by Gaussian elimination with a tiny ridge for stability.
+    const matrix = Array.from({ length: size }, (_, i) => Array.from({ length: size + 1 }, (_, j) => {
+        let total = 0;
+        for (let row = 0; row < rows; row += 1) total += (xs[i][row] - mx[i]) * (j < size ? xs[j][row] - mx[j] : y[row] - my);
+        return total + (i === j ? 1e-9 : 0);
+    }));
+    for (let column = 0; column < size; column += 1) {
+        let pivot = column;
+        for (let row = column + 1; row < size; row += 1) if (Math.abs(matrix[row][column]) > Math.abs(matrix[pivot][column])) pivot = row;
+        [matrix[column], matrix[pivot]] = [matrix[pivot], matrix[column]];
+        const divisor = matrix[column][column] || 1e-12;
+        for (let row = 0; row < size; row += 1) {
+            if (row === column) continue;
+            const factor = matrix[row][column] / divisor;
+            for (let k = column; k <= size; k += 1) matrix[row][k] -= factor * matrix[column][k];
+        }
+    }
+    return matrix.map((row, index) => row[size] / (row[index] || 1e-12));
+}

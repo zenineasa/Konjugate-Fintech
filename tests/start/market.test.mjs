@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { preferTogetherDirection, yahooChartToCsv, alignSeries, analyzeWindows, inferenceCsv, linkStability, parseSeriesFile, rollingWindows, skeletonThresholdFor, stabilityLabel, toChanges } from '../../packages/markets/lib/market.mjs';
+import { fitSameBar, preferTogetherDirection, yahooChartToCsv, alignSeries, analyzeWindows, inferenceCsv, linkStability, parseSeriesFile, rollingWindows, skeletonThresholdFor, stabilityLabel, toChanges } from '../../packages/markets/lib/market.mjs';
 
 const stooq = 'Date,Open,High,Low,Close,Volume\n2026-01-02,10,11,9,10.5,100\n2026-01-05,10.5,12,10,11.0,120\n2026-01-06,11,12,10,10.8,90\n2026-01-07,10.8,11,10,11.4,95\n';
 const fred = 'observation_date,DGS10\n2026-01-02,4.10\n2026-01-05,.\n2026-01-06,4.05\n2026-01-07,4.20\n';
@@ -149,4 +149,22 @@ test('hourly bars are named by their hour, so a stock opening at half past lines
     const future = parseSeriesFile(chart(-1800), 'Future');
     assert.deepEqual(stock.points.map((point) => point.date), future.points.map((point) => point.date));
     assert.match(stock.points[0].date, /^2026-09-\d\d \d\d:00$/);
+});
+
+test('a same-bar link is refitted against only the sources kept: one source gives its plain beta, two give their joint effects', () => {
+    let seed = 99;
+    const random = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+    const normal = () => Math.sqrt(-2 * Math.log(random() + 1e-12)) * Math.cos(2 * Math.PI * random());
+    const market = Array.from({ length: 400 }, () => normal());
+    const sector = market.map((value) => 0.8 * value + 0.6 * normal());
+    const target = market.map((value, index) => 0.5 * value + 0.4 * sector[index] + 0.3 * normal());
+    const columns = [market, sector, target];
+    const slope = (x, y) => { const mx = x.reduce((a, b) => a + b, 0) / x.length; const my = y.reduce((a, b) => a + b, 0) / y.length; return x.reduce((sum, v, i) => sum + (v - mx) * (y[i] - my), 0) / x.reduce((sum, v) => sum + (v - mx) ** 2, 0); };
+    const [alone] = fitSameBar(columns, 2, [0], 400);
+    assert.ok(Math.abs(alone - slope(market, target)) < 1e-6, 'With one source the coefficient is the plain regression slope, which includes what runs through the sector.');
+    assert.ok(alone > 0.75, 'The plain slope on the market is larger than its direct 0.5, since the sector carries part of it.');
+    const [direct, viaSector] = fitSameBar(columns, 2, [0, 1], 400);
+    assert.ok(Math.abs(direct - 0.5) < 0.1 && Math.abs(viaSector - 0.4) < 0.1, `Fitted together they recover the direct effects (${direct.toFixed(2)}, ${viaSector.toFixed(2)}).`);
+    assert.deepEqual(fitSameBar(columns, 2, [0], 400).length, 1);
+    assert.deepEqual(fitSameBar([[1, 2, 3], [1, 2, 3]], 1, [0], 250), [0], 'Too few bars to fit: no effect rather than a made-up one.');
 });

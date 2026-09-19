@@ -77,8 +77,8 @@
             },
             {
                 "scenarioId": "runWithPriceShock",
-                "name": "Depositor run with an asset-price shock",
-                "description": "The same run, in a market where forced sales fetch much less: the assets a stressed institution sells lose 25% of their value instead of 10%.",
+                "name": "Depositor run with a severe asset-price shock",
+                "description": "The same run, while forced sales fetch only half of book value. Watch the stress spread through interbank lending, fire sales and defaults, and see who fails.",
                 "forkAt": 5,
                 "runTime": 60,
                 "choose": {
@@ -86,7 +86,7 @@
                 },
                 "effects": [
                     "For 8 days from day 5, depositors withdraw 1.5% of {entity}'s deposits every day.",
-                    "From day 5, loans sold in a hurry lose 25% of their book value instead of 10%."
+                    "The haircut on forced sales rises to 50% for every institution: assets sold in a hurry fetch half of book value."
                 ],
                 "interventions": [
                     {
@@ -98,14 +98,14 @@
                     {
                         "parameter": "baseHaircut",
                         "target": "global",
-                        "value": 0.25
+                        "value": 0.5
                     }
                 ]
             },
             {
                 "scenarioId": "runWithCentralBankSupport",
                 "name": "Run, price shock and central-bank support",
-                "description": "The same run and price shock as the previous scenario, with the central bank lending to the stressed institution while its cash is below target. Compare the two to see what support is worth.",
+                "description": "The same run and severe price shock as the previous scenario, with the central bank lending to the stressed institution while its cash is below target. Compare the two to see what support is worth.",
                 "forkAt": 5,
                 "runTime": 60,
                 "choose": {
@@ -113,7 +113,7 @@
                 },
                 "effects": [
                     "For 8 days from day 5, depositors withdraw 1.5% of {entity}'s deposits every day.",
-                    "The base haircut on forced sales rises to 25% for every institution.",
+                    "The haircut on forced sales rises to 50% for every institution.",
                     "From day 8 the central bank lends to {entity} while its cash is below its target: up to half the facility maximum a day, tapering to nothing as cash recovers."
                 ],
                 "interventions": [
@@ -126,7 +126,7 @@
                     {
                         "parameter": "baseHaircut",
                         "target": "global",
-                        "value": 0.25
+                        "value": 0.5
                     },
                     {
                         "parameter": "emergencyLending",

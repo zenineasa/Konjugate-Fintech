@@ -1,6 +1,6 @@
 /* Copyright © 2026 Zenin Easa Panthakkalakath */
 
-import { alignSeries, cropAligned, parseSeriesFile, toChanges } from '../lib/market.mjs';
+import { alignSeries, cropAligned, fitSameBar, parseSeriesFile, toChanges } from '../lib/market.mjs';
 
 // The Markets importer runs in two steps. "read" turns the chosen price or rate files into a table of changes and
 // says what it repaired or dropped; the window then runs causal inference on rolling windows of that table. "build"
@@ -103,6 +103,24 @@ function buildStage(read, options) {
         else report.warnings.push({ file: '', message: `${bySafe.get(term.targetColumn)}: the fitted memory (${decimal(term.rate)}) would not settle down, so a return that fades within a bar is used instead.` });
     }
 
+    // Same-bar links are refitted against only the links that are kept, and act on the source's own push (what was done to it), not on its
+    // whole return, so a shock reaches each series in one step and never chains through another. The coefficient is scaled by the target's
+    // own rate of fading, so that in total the target moves by the plain fitted beta times the push, whatever its memory.
+    const together = usableEdges.filter((edge) => edge.provenance === 'correlationOnly');
+    const lagged = usableEdges.filter((edge) => edge.provenance !== 'correlationOnly');
+    const fitBars = Number.isFinite(options.fitBars) ? options.fitBars : 250;
+    const sameBar = [];
+    const sourcesOf = new Map();
+    for (const edge of together) {
+        const target = names.indexOf(bySafe.get(edge.targetColumn));
+        sourcesOf.set(target, [...(sourcesOf.get(target) ?? []), names.indexOf(bySafe.get(edge.sourceColumn))]);
+    }
+    for (const [target, sources] of sourcesOf) {
+        const betas = fitSameBar(changes.columns, target, sources, fitBars);
+        const fade = Math.abs(selfRate.get(safeName(names[target])) ?? defaultRelaxation);
+        sources.forEach((source, position) => sameBar.push({ from: source, to: target, beta: betas[position], coefficient: betas[position] * fade }));
+    }
+
     // Each series is a node on a circle; the shocks come from one node in the middle.
     const symbolFor = (index) => `s${index}`;
     const operations = [];
@@ -118,6 +136,8 @@ function buildStage(read, options) {
         operations.push({ kind: 'addNode', ref: `n${index}`, name, type: 'Market series', position: [radius * Math.cos(angle), radius * Math.sin(angle), 0], shape: 'sphere' });
         operations.push({ kind: 'addState', nodeRef: `n${index}`, ref: `r${index}`, name: 'Return per bar', symbol: 'ret', initialValue: start, unit: '' });
         operations.push({ kind: 'addState', nodeRef: `n${index}`, ref: `p${index}`, name: 'Price change since now', symbol: 'lvl', initialValue: 0, unit: '' });
+        operations.push({ kind: 'addState', nodeRef: `n${index}`, ref: `u${index}`, name: 'Push', symbol: 'push', initialValue: 0, unit: '' });
+        operations.push({ kind: 'addSourceTerm', nodeRef: `n${index}`, outputStateRef: `u${index}`, latex: '-\\mathrm{push}' });
         operations.push({ kind: 'addSourceTerm', nodeRef: `n${index}`, outputStateRef: `p${index}`, latex: '\\mathrm{ret}' });
         operations.push({ kind: 'addSourceTerm', nodeRef: `n${index}`, outputStateRef: `r${index}`, latex: trimLeadingPlus(signedTerm(selfRate.get(column) ?? defaultRelaxation, '\\mathrm{ret}')) });
     });
@@ -131,8 +151,14 @@ function buildStage(read, options) {
         operations.push({ kind: 'addParameter', edgeRef: `shockEdge${index}`, ref: `gainParameter${index}`, name: `Tracking gain for ${name}`, symbol: 'trackGain', value: 0, unit: '1/bar', mode: 'live' });
         operations.push({ kind: 'addParameter', edgeRef: `shockEdge${index}`, ref: `driveParameter${index}`, name: `Driven return for ${name}`, symbol: 'drive', value: 0, unit: 'per bar', mode: 'live' });
         operations.push({ kind: 'setEdgeEquation', edgeRef: `shockEdge${index}`, outputStateRef: `r${index}`, latex: '\\mathrm{shock} + \\mathrm{trackGain} \\cdot \\left(\\mathrm{drive} - \\mathrm{targetRet}\\right)' });
+        // The same forcing, on the push that same-bar links read.
+        operations.push({ kind: 'addEdge', ref: `pushEdge${index}`, name: `Shock push → ${name}`, sourceNodeRef: 'shocks', targetNodeRef: `n${index}`, directionality: 'directed' });
+        for (const [symbol, label, unit] of [['shock', 'Shock to', 'per bar'], ['trackGain', 'Tracking gain for', '1/bar'], ['drive', 'Driven return for', 'per bar']]) {
+            operations.push({ kind: 'addParameter', edgeRef: `pushEdge${index}`, ref: `${symbol}Push${index}`, name: `${label} ${name}`, symbol, value: 0, unit, mode: 'live' });
+        }
+        operations.push({ kind: 'setEdgeEquation', edgeRef: `pushEdge${index}`, outputStateRef: `u${index}`, latex: '\\mathrm{shock} + \\mathrm{trackGain} \\cdot \\left(\\mathrm{drive} - \\mathrm{targetPush}\\right)' });
     });
-    usableEdges.forEach((edge, index) => {
+    lagged.forEach((edge, index) => {
         const from = names.indexOf(bySafe.get(edge.sourceColumn));
         const to = names.indexOf(bySafe.get(edge.targetColumn));
         const linear = [...edge.terms].sort((a, b) => a.degree - b.degree)
@@ -142,6 +168,11 @@ function buildStage(read, options) {
         const latex = trimLeadingPlus(`${linear} ${options.keepIntercepts === true ? signedTerm(edge.intercept, null) : ''}`.trim());
         operations.push({ kind: 'addEdge', ref: `link${index}`, name: `${names[from]} → ${names[to]}`, sourceNodeRef: `n${from}`, targetNodeRef: `n${to}`, directionality: 'directed' });
         operations.push({ kind: 'setEdgeEquation', edgeRef: `link${index}`, outputStateRef: `r${to}`, latex });
+    });
+
+    sameBar.forEach(({ from, to, coefficient }, index) => {
+        operations.push({ kind: 'addEdge', ref: `together${index}`, name: `${names[from]} ⇄ ${names[to]}`, sourceNodeRef: `n${from}`, targetNodeRef: `n${to}`, directionality: 'directed' });
+        operations.push({ kind: 'setEdgeEquation', edgeRef: `together${index}`, outputStateRef: `r${to}`, latex: trimLeadingPlus(signedTerm(coefficient, '\\mathrm{sourcePush}')) });
     });
 
     const { document } = options.helpers.applyOperations(operations);
@@ -162,10 +193,16 @@ function buildStage(read, options) {
             Object.assign(parameter, { sharedParameterId: shared.id, control: entry.control });
             parameterIndex.push({ key: parameter.symbol, scope: 'series', entity: name, sharedParameterId: shared.id, name: shared.name, live: true, minimum: entry.control.minimum, maximum: entry.control.maximum, value: 0 });
         };
+        const pushEdge = document.edges.find((candidate) => candidate.name === `Shock push → ${name}`);
         const [shock, gain, drive] = ['shock', 'trackGain', 'drive'].map((symbol) => edge.parameters.find((parameter) => parameter.symbol === symbol));
         make(shock, { name: `Shock to ${name}`, control });
         make(gain, { name: `Tracking gain for ${name}`, control: gainControl });
         make(drive, { name: `Driven return for ${name}`, control });
+        // The push edge's parameters are the same shared ones, so one control drives both.
+        for (const parameter of [shock, gain, drive]) {
+            const twin = pushEdge.parameters.find((candidate) => candidate.symbol === parameter.symbol);
+            Object.assign(twin, { sharedParameterId: parameter.sharedParameterId, control: parameter.control });
+        }
     });
     report.summary = { ...report.summary, links: usableEdges.length, memory: selfRate.size };
     if (!usableEdges.length) report.warnings.push({ file: '', message: 'No links were kept, so a shock to one series will not reach any other. It will still show its own effect.' });

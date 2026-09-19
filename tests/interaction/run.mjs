@@ -561,6 +561,10 @@ try {
         const airlines = await linkRow('Brent crude → Airlines');
         assert.match(await airlines.textContent(), /moves against it/, 'Crude leads airlines, with the opposite sign.');
         assert.ok(await markets.locator('#linkGraph svg path[marker-end]').count() >= 1, 'The kept links are drawn as a graph.');
+        // A same-bar pair is one row, not two, with a way to use the other direction.
+        const pairRowsText = await markets.locator('#togetherTable tbody tr td:nth-child(2)').allTextContents();
+        const pairKeys = pairRowsText.map((text) => text.split(' → ').map((part) => part.trim()).sort().join('|'));
+        assert.equal(new Set(pairKeys).size, pairKeys.length, `Each same-bar pair is listed once (${pairRowsText.join(', ')}).`);
         console.log(`Markets links: ${(await markets.locator('#linkTable tbody tr').allTextContents()).map((text) => text.replace(/\s+/g, ' ').trim()).slice(0, 4).join(' | ')}`);
 
         // Build the model and shock gold: the miners follow, the unrelated series stay put.

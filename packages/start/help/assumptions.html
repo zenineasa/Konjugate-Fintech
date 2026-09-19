@@ -15,7 +15,7 @@
 <tr><td>Fire-sale market</td><td>Depth about 83% of total loans; price falls with the amount sold</td><td>Sets how far forced sales move prices</td></tr>
 <tr><td>Payment capacity</td><td>At most five times current cash paid out a day</td><td>An institution cannot pay out more than it holds: its cash never goes below zero, and one that runs out simply stops paying. Peers may lend it cash, which is how it can recover</td></tr>
 <tr><td>Central-bank support</td><td>Up to a fraction of deposits a day, while cash is below target</td><td>Tapers to nothing as cash recovers, so support ends by itself; the loans are never repaid</td></tr>
-<tr><td>Fire-sale haircut</td><td>10%</td><td>The discount to book value on a forced sale</td></tr>
+<tr><td>Fire-sale haircut</td><td>10% normally; 50% in the severe price-shock scenarios</td><td>The discount to book value on a forced sale. Half of book value is a severe stress; a milder one shows less spread</td></tr>
 <tr><td>Interbank default shares</td><td>Each creditor's share of a borrower's interbank debt</td><td>From your exposures, or estimated</td></tr>
 </table>
 <p>All of these are parameters in the model. Open it in Konjugate and use the Parameters table to see and change them.</p>
@@ -23,7 +23,7 @@
 <h2>What it simplifies</h2>
 <ul>
 <li>Losses pass to creditors in fixed shares, not through a solved clearing vector (Eisenberg–Noe).</li>
-<li>Interbank loans have no maturities or repayment, and negative equity is not floored, so the size of losses in severe scenarios is illustrative.</li>
+<li>Interbank loans have no maturities or repayment, and negative equity is not floored, so a negative number in the results is the shortfall left for creditors beyond the institution's capital, shown as such, and its size is illustrative.</li>
 <li>There are no capital or liquidity regulations (ratios, buffers), no derivatives, no funding markets beyond interbank lending, and no behavioural response by institutions beyond the modelled channels.</li>
 <li>Results depend on assumptions above that are not calibrated to your institutions. Which of them drives a result is listed under "What drives this result" beside every run.</li>
 <li>Failure days come from a simulation that steps in tenths of a day and are good to about a day or two; the order in which institutions fail is what to rely on.</li>

@@ -47,6 +47,7 @@ try {
     report('Baseline', baseline.result.samples);
     for (const scenario of manifest.contributes.scenarios) {
         // RATE=0.03 tries a different depositor withdrawal rate in the scenarios that run on one institution, to tune severities.
+        if (process.env.HAIRCUT) for (const change of scenario.interventions) if (change.parameter === 'baseHaircut') change.value = Number(process.env.HAIRCUT);
         if (process.env.RATE) for (const change of scenario.interventions) if (change.parameter === 'withdrawalRate' && change.target === 'chosen') change.value = Number(process.env.RATE);
         const interventions = host.resolveInterventions(scenario, imported.parameterIndex, scenario.choose ? largest : null);
         const { child } = await host.runScenarioBranches({ content, config, scenario, interventions, baseline, engineOptions });

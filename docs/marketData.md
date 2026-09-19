@@ -125,11 +125,23 @@ Prompted by three points from use: users need more flexibility over the data ran
 
 **A drift bug found by looking at a result.** A fitted link carries a constant, the target's average drift over the learning window, and the model was carrying it forward, so a series that happened to drift down in the window was projected down. On the sample series, Gold miners were projected to fall 12.7% over 21 bars against a real move of about +1%. The constants are now left out unless asked for (`keepIntercepts`), i.e. zero drift. Backtests, which is what should have caught it: daily, closer than no change 62% -> 67% and closer than the market guess 61% -> 73%; hourly, closer than no change 50% -> 63% and closer than the market guess 31% -> 50%.
 
-**What the benchmarks showed (real data, zero drift).**
-- Daily, 21 bars from twelve as-of dates, seven series: 24 comparisons, closer than no change 16 (67%), direction right 16 (67%), closer than the S&P 500 beta guess 16 of 22 (73%).
-- Hourly, 21 bars, six series over about two years: 16 comparisons, closer than no change 10 (63%), direction right 10 (63%), closer than the beta guess 8 of 16 (50%).
-- So the model does better than guessing no change, and on daily bars somewhat better than a market-beta guess, but on hourly bars it is level with one. Sixteen to twenty-four overlapping comparisons cannot separate these from chance, and the daily set includes gold and gold miners, which the model gets right every time. The honest reading is that the links add something beyond a market beta on daily bars for a few pairs, and little elsewhere.
+**What the benchmarks showed (real data, zero drift, refitted same-bar links; see the fourth version).**
+- Daily, 21 bars from twelve as-of dates, seven series: 26 comparisons, closer than no change 17 (65%), direction right 17 (65%), closer than the S&P 500 beta guess 17 of 23 (74%).
+- Hourly, 21 bars, six series over about two years: 14 comparisons, closer than no change 7 (50%), direction right 7 (50%), closer than the beta guess 7 of 14 (50%). That is chance.
+- So the model does better than guessing no change on daily bars and somewhat better than a market-beta guess, and on hourly bars it does no better than chance. Fourteen to twenty-six overlapping comparisons cannot separate any of these from chance, and the daily set includes gold and gold miners, which the model gets right every time. The honest reading is that the links add something beyond a market beta on daily bars for a few pairs, and nothing shown on hourly bars.
 
 **Sources.** FRED did not answer from the test machine on either day it was tried, and Stooq answers with a browser check instead of data, so only Yahoo Finance is verified. Rates are available from Yahoo (`^IRX`, `^FVX`, `^TNX`, `^TYX`).
 
 **Still open.** Non-Yahoo sources that can be verified; a projection that uses the model's own uncertainty; longer-delay lead-lag links (a limit in core's screening); a check of intraday links with sessions that differ (futures trade overnight, stocks do not).
+
+## Fourth version: an external review of the Markets window
+
+A second review checked the window against plain regressions on live data (gold, gold miners, the S&P 500, airlines, banks, Brent, two years of daily bars) and found a defect: shocking the S&P 500 down 5% moved Brent up 6.2%, where a plain regression gives +1.1% from a correlation of -0.08. `node scripts/marketChain.mjs` reproduces it.
+
+**Cause, confirmed.** The engine's same-bar coefficients are fitted for each target against every other series at once, so each is conditional on the others. The window keeps only the links that were steady, drops the rest, and those conditional coefficients then no longer mean what they meant. Worse, the links chained: the S&P moved airlines, and airlines, through a conditional coefficient of -1.24, moved Brent.
+
+**Fix.** Same-bar links are refitted against only the links that are kept (least squares over the last 250 bars, with one source this is the plain regression beta) and act on the source's own push, the forcing applied to it, not on its whole return, so a shock reaches each series in one step and never chains. The coefficient is scaled by the target's own rate of fading so that in total it moves by the fitted beta times the push. Lead-lag links are unchanged. The market-wide sell-off scenario, which shocked every series and so counted the market factor many times over, was removed: shocking the market series does the same thing correctly.
+
+**After the fix,** the same shock gives JETS -7.4% (plain regression -7.3%), Brent 0.0% (no kept link reaches it), and the model's answers for the series it links agree with the plain regression on the fit window. The backtests above are from after the fix.
+
+**Smaller items from the review.** The page is now titled for what it finds (how the series are linked), since daily data yields almost no lead-lag links. Each same-bar pair is one row, in the direction in use, with a button for the other direction. The weak replay on the sample series is the synthetic data being noise, not something to tune away. In the bank window, negative equity is shown as a shortfall, and the price-shock scenarios use a 50% forced-sale discount so that the sample data shows stress spreading (Alder fails first, and Holly and Fir fail later), with support limiting it.

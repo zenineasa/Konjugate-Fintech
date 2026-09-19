@@ -644,8 +644,22 @@ function renderLinkGraph() {
 const labelText = { stable: 'Steady', sometimes: 'Comes and goes', unstable: 'Unsteady', 'too few windows to say': 'Too few stretches' };
 const labelClass = { stable: 'ok', sometimes: 'warn', unstable: 'bad', 'too few windows to say': 'warn' };
 
+// Same-bar links come in pairs, one for each direction, and only one direction is used. The pair is listed once, in the direction in use,
+// with a button to use the other.
+function pairRows(rows) {
+    const pairs = new Map();
+    for (const link of rows) {
+        const key = [link.source, link.target].sort().join('|');
+        pairs.set(key, [...(pairs.get(key) ?? []), link]);
+    }
+    return [...pairs.values()].map((pair) => {
+        const shown = pair.find((link) => state.kept.has(linkKey(link))) ?? pair.find((link) => link.preferred) ?? pair[0];
+        return { ...shown, other: pair.find((link) => link !== shown) ?? null };
+    });
+}
+
 function linkRows(rows, together) {
-    return rows.map((link) => {
+    return (together ? pairRows(rows) : rows).map((link) => {
         const key = linkKey(link);
         const usable = link.latest;
         return `<tr class="${usable ? '' : 'faded'}"><td><input type="checkbox" data-link="${escapeHtml(key)}" ${state.kept.has(key) ? 'checked' : ''} ${usable ? '' : 'disabled'} aria-label="Use ${escapeHtml(nice(link.source))} to ${escapeHtml(nice(link.target))}"></td>
@@ -653,7 +667,7 @@ function linkRows(rows, together) {
             <td>${link.sign > 0 ? 'moves with it' : link.sign < 0 ? 'moves against it' : 'mixed'}${link.signAgreement < 0.9 ? ' <span class="empty">(direction varies)</span>' : ''}</td>
             ${together ? '' : `<td>${link.lag} bar${link.lag === 1 ? '' : 's'}</td>`}
             <td>${link.appearances} of ${link.windows}</td>
-            <td><span class="status ${labelClass[link.label]}">${labelText[link.label]}</span>${usable ? '' : ' <span class="empty">not in the newest stretch</span>'}</td></tr>`;
+            <td><span class="status ${labelClass[link.label]}">${labelText[link.label]}</span>${usable ? '' : ' <span class="empty">not in the newest stretch</span>'}${link.other ? ` <button class="button link" type="button" data-flip="${escapeHtml(linkKey(link))}" data-flip-to="${escapeHtml(linkKey(link.other))}">use ${escapeHtml(nice(link.other.source))} → ${escapeHtml(nice(link.other.target))} instead</button>` : ''}</td></tr>`;
     }).join('');
 }
 
@@ -681,6 +695,21 @@ function renderLinks() {
         </ul></details>
         <div class="actions"><button class="button primary" type="button" id="buildModel">Build the model with ${plural(state.kept.size, 'link')}</button></div>
         <div id="buildStatus" aria-live="polite"></div>`;
+    $('#togetherTable')?.addEventListener('click', (event) => {
+        const from = event.target.dataset.flip;
+        if (from === undefined) return;
+        const to = event.target.dataset.flipTo;
+        const wasKept = state.kept.has(from);
+        state.kept.delete(from);
+        const linkTo = analysis.together.find((link) => linkKey(link) === to);
+        for (const link of analysis.together) if (linkKey(link) === from) link.preferred = false;
+        if (linkTo) linkTo.preferred = true;
+        if (wasKept && linkTo?.latest) state.kept.add(to);
+        state.built = null;
+        state.run = null;
+        renderLinks();
+        refreshSteps();
+    });
     for (const id of ['#linkTable', '#togetherTable']) {
         $(id)?.addEventListener('change', (event) => {
             const key = event.target.dataset.link;

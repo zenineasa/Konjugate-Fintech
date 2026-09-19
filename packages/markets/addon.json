@@ -101,24 +101,6 @@
                 ]
             },
             {
-                "scenarioId": "selloff",
-                "name": "A broad sell-off",
-                "description": "Every series falls 3% in a single bar. Shows how the links amplify or damp a market-wide move.",
-                "forkAt": 1,
-                "runTime": 21,
-                "effects": [
-                    "Every series falls by about 3% in one bar, at the start of the run."
-                ],
-                "interventions": [
-                    {
-                        "parameter": "shock",
-                        "target": "all",
-                        "value": -0.03,
-                        "duration": 1
-                    }
-                ]
-            },
-            {
                 "scenarioId": "project",
                 "name": "Project forward",
                 "description": "Run the model forward from the as-of date with nothing changed, with the range that past volatility allows. Bars held back are drawn against it.",
