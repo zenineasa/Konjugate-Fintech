@@ -417,6 +417,125 @@ try {
         assert.ok(results.includes('Depositor run,') && results.includes('Baseline,'), 'The results file holds both branches.');
         console.log(`Start window: import, scenario, comparison, canvas and export all work (${manifest.scenario.interventions.length} intervention applied to ${manifest.scenario.chosenEntity}).`);
     });
+
+    // --- Scenario 7: the Markets window: series -> links -> model -> what-if -> canvas. --------------
+    const shortDirectory = join(scratch, 'short');
+    await mkdir(shortDirectory, { recursive: true });
+    const shortFile = (name) => writeFile(join(shortDirectory, name), `Date,Close\n${Array.from({ length: 10 }, (_, index) => `2026-01-${String(index + 1).padStart(2, '0')},${100 + index}`).join('\n')}\n`);
+    await shortFile('One.csv');
+    await shortFile('Two.csv');
+    await withApp(nodesOnly.path, async ({ app, window }) => {
+        await app.evaluate(({ dialog }) => {
+            globalThis.fintechDialogAnswers = [];
+            dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [globalThis.fintechDialogAnswers.shift()] });
+        });
+        const answer = (path) => app.evaluate((_electron, value) => { globalThis.fintechDialogAnswers.push(value); }, path);
+        await window.click('.addonTool[data-addon-id="konjugate.fintech.markets"][data-command-id="openMarkets"]');
+        let markets;
+        for (let attempt = 0; attempt < 150 && !markets; attempt += 1) {
+            markets = app.windows().find((candidate) => candidate.url().includes('konjugate.fintech.markets'));
+            if (!markets) await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        assert.ok(markets, 'The Fintech markets window did not open.');
+        await markets.waitForSelector('#seriesSlot');
+        assert.equal(await markets.locator('#readData').isDisabled(), true, 'At least two series are needed before anything can be read.');
+
+        // Two files too short to compare are refused with a reason.
+        await answer(join(shortDirectory, 'One.csv'));
+        await markets.click('#addFiles');
+        await markets.waitForSelector('#seriesSlot .file-line .name');
+        await answer(join(shortDirectory, 'Two.csv'));
+        await markets.click('#addFiles');
+        await markets.waitForFunction(() => document.querySelectorAll('#seriesSlot .file-line .name').length === 2);
+        await markets.click('#readData');
+        await markets.waitForSelector('#importResult .notice.error');
+        assert.match(await markets.textContent('#importResult .notice.error'), /at least 40/);
+
+        // Fetching from the internet, with the network answered by the test: two symbols that exist, one that does not,
+        // and a symbol that would send the request to a host the window may not reach.
+        const chart = (seed) => {
+            let value = seed;
+            const stamps = Array.from({ length: 130 }, (_, index) => 1767225600 + index * 86400);
+            return JSON.stringify({ chart: { result: [{ meta: { gmtoffset: 0 }, timestamp: stamps, indicators: { adjclose: [{ adjclose: stamps.map((_, index) => (value *= 1 + 0.01 * Math.sin(index * seed))) }] } }], error: null } });
+        };
+        await app.evaluate((_electron, bodies) => {
+            globalThis.fetchedUrls = [];
+            globalThis.fetch = async (url) => {
+                globalThis.fetchedUrls.push(String(url));
+                const symbol = decodeURIComponent(new URL(url).pathname.split('/').pop());
+                if (bodies[symbol]) return new Response(bodies[symbol], { status: 200 });
+                return new Response('not found', { status: 404 });
+            };
+        }, { AAA: chart(3.1), BBB: chart(5.7) });
+        while (await markets.locator('#seriesSlot [data-remove]').count()) {
+            const before = await markets.locator('#seriesSlot [data-remove]').count();
+            await markets.click('#seriesSlot [data-remove]');
+            await markets.waitForFunction((count) => document.querySelectorAll('#seriesSlot [data-remove]').length < count, before);
+        }
+        await markets.click('#fetchCard summary');
+        await markets.fill('#fetchSymbols', 'AAA, BBB, NOPE');
+        await markets.click('#fetchNow');
+        await markets.waitForSelector('#fetchStatus .notice.warning', { timeout: 30000 });
+        assert.match(await markets.textContent('#fetchStatus .notice.warning'), /NOPE: query1\.finance\.yahoo\.com answered 404/);
+        await markets.waitForSelector('#importResult .notice, #importStatus .notice', { timeout: 30000 });
+        assert.equal(await markets.locator('#importResult .notice.ok').count(), 1, await markets.locator('#importResult, #importStatus').allTextContents().then((texts) => texts.join(' | ')));
+        const fetchedNames = await markets.locator('#seriesSlot .file-line .name').allTextContents();
+        assert.deepEqual(fetchedNames, ['AAA.csv (fetched)', 'BBB.csv (fetched)']);
+        assert.equal(await markets.locator('#importResult tbody tr').count(), 2);
+        const requested = await app.evaluate(() => globalThis.fetchedUrls);
+        assert.ok(requested.every((url) => url.startsWith('https://query1.finance.yahoo.com/v8/finance/chart/')), 'Only the listed host is contacted.');
+
+        // Keeping it up to date: one series changes at the source, and a rebuild fetches it again and records the look.
+        await markets.click('#toLinks');
+        await markets.click('#findLinks');
+        await markets.waitForSelector('#linkResult .notice', { timeout: 120000 });
+        await markets.waitForSelector('#refreshCard #rebuildNow:not([disabled])');
+        await app.evaluate((_electron, body) => {
+            const original = globalThis.fetch;
+            globalThis.fetch = async (url) => (String(url).includes('/AAA?') ? new Response(body, { status: 200 }) : original(url));
+        }, chart(9.9));
+        await markets.click('#rebuildNow');
+        await markets.waitForFunction(() => /from 1 changed file/.test(document.querySelector('#refreshNote').textContent), null, { timeout: 120000 });
+        assert.equal(await markets.locator('#refreshCard tbody tr').count(), 2, 'Each look is recorded, newest first.');
+        await markets.click('.step[data-step="data"]');
+
+        // The sample series read cleanly, and the analysis finds the links that were planted in them.
+        await markets.click('#useSample');
+        await markets.waitForFunction(() => document.querySelectorAll('#importResult tbody tr').length === 7, null, { timeout: 30000 });
+        await markets.click('#toLinks');
+        await markets.click('#findLinks');
+        await markets.waitForSelector('#linkTable', { timeout: 120000 });
+        console.log(`Markets links table: ${(await markets.locator('#linkResult').textContent()).replace(/\s+/g, ' ').slice(0, 900)}`);
+        const linkRow = async (text) => markets.locator('#linkTable tbody tr', { hasText: text }).first();
+        const miners = await linkRow('Gold → Gold miners');
+        assert.match(await miners.textContent(), /moves with it/, 'Gold leads gold miners, with the same sign.');
+        assert.equal(await miners.locator('input').isChecked(), true, 'A steady link is kept by default.');
+        const airlines = await linkRow('Brent crude → Airlines');
+        assert.match(await airlines.textContent(), /moves against it/, 'Crude leads airlines, with the opposite sign.');
+        console.log(`Markets links: ${(await markets.locator('#linkTable tbody tr').allTextContents()).map((text) => text.replace(/\s+/g, ' ').trim()).slice(0, 4).join(' | ')}`);
+
+        // Build the model and shock gold: the miners follow, the unrelated series stay put.
+        await markets.click('#buildModel');
+        await markets.waitForSelector('#buildStatus .notice.ok', { timeout: 60000 });
+        await markets.click('#toWhatIf');
+        await markets.selectOption('#entityChoice', 'Gold');
+        await markets.click('#runScenario');
+        await markets.waitForSelector('#panel-results.active #tiles .tile', { timeout: 120000 });
+        const headline = await markets.textContent('#headline');
+        console.log(`Markets headline: ${headline}`);
+        assert.match(headline, /Gold ends −/);
+        assert.match(headline, /the biggest is Gold miners at −/);
+        assert.equal(await markets.locator('#resultTable tbody tr').count(), 7);
+        const tableRows = await markets.locator('#resultTable tbody tr').allTextContents();
+        assert.match(tableRows.find((row) => row.startsWith('Banks')), /[+−]?0\.0\d%/, 'A series the shock does not reach barely moves.');
+        assert.ok(await markets.locator('#chart svg path').count() >= 5);
+
+        await markets.click('#openCanvas');
+        await window.waitForFunction(() => document.querySelector('.documentTitle').textContent === 'FintechMarkets', null, { timeout: 30000 });
+        await window.waitForFunction(() => document.querySelectorAll('#branchChips > *').length === 2, null, { timeout: 30000 });
+        assert.match(await window.textContent('.modelStatus'), /8 nodes/);
+        console.log('Markets window: read, links, model, what-if and canvas all work.');
+    });
     console.log('Fintech interaction checks passed.');
 } finally {
     await rm(scratch, { recursive: true, force: true });

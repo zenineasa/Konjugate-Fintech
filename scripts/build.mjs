@@ -70,3 +70,29 @@ const startArchive = createPackageArchive({
 const startTarget = join(outputDirectory, `${startManifest.addonId}-${startManifest.version}.kja`);
 await writeFile(startTarget, startArchive);
 console.log(`Built ${startTarget}`);
+
+// ---- the Markets add-on (a launcher) -----------------------------------------------------------------
+// Self-contained: its importer, analysis library and sample series are all inside the package.
+const marketsDirectory = join(fintechRoot, 'packages', 'markets');
+const marketsManifest = JSON.parse(await readFile(join(marketsDirectory, 'addon.json'), 'utf8'));
+const marketsFiles = {};
+const collectMarkets = async (prefix = '') => {
+    for (const entry of await readdir(join(marketsDirectory, prefix), { withFileTypes: true })) {
+        const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+        if (entry.isDirectory()) await collectMarkets(relative);
+        else if (relative !== 'addon.json') marketsFiles[relative] = await readFile(join(marketsDirectory, relative));
+    }
+};
+await collectMarkets();
+const marketsArchive = createPackageArchive({
+    packageManifest: {
+        format: 'konjugate-package', formatVersion: 1, packageType: 'addon',
+        packageId: marketsManifest.addonId, name: marketsManifest.name, version: marketsManifest.version,
+        contents: { manifest: 'addon.json' }
+    },
+    contributionManifest: marketsManifest,
+    files: marketsFiles
+});
+const marketsTarget = join(outputDirectory, `${marketsManifest.addonId}-${marketsManifest.version}.kja`);
+await writeFile(marketsTarget, marketsArchive);
+console.log(`Built ${marketsTarget}`);

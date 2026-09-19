@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+    <title>Fintech Markets</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="rail" aria-label="Steps">
+        <div class="brand"><strong>Fintech Markets</strong><span>Links between markets, and what-ifs</span></div>
+        <button class="step" type="button" data-step="data" aria-current="step"><span class="number">1</span><span><b>Your series</b><small>Prices and rates</small></span></button>
+        <button class="step" type="button" data-step="links" disabled><span class="number">2</span><span><b>Links</b><small>What leads what, and how steadily</small></span></button>
+        <button class="step" type="button" data-step="whatif" disabled><span class="number">3</span><span><b>What if</b><small>Shock a series</small></span></button>
+        <button class="step" type="button" data-step="results" disabled><span class="number">4</span><span><b>Results</b><small>Compare with no shock</small></span></button>
+        <button class="step" type="button" data-step="learn"><span class="number">5</span><span><b>Learn</b><small>Format, assumptions</small></span></button>
+        <p class="rail-note">Everything stays on this computer. Links found in past data are not a forecast, and the model is illustrative.</p>
+    </nav>
+
+    <main>
+        <section class="panel active" id="panel-data" aria-labelledby="title-data">
+            <header>
+                <h2 id="title-data">Start from your own series</h2>
+                <p class="lede">Choose one file per series: a date column and a price or rate column. Konjugate lines them up on shared dates, turns them into changes, and tells you what it repaired or left out.</p>
+            </header>
+            <div class="card slot" id="seriesSlot"></div>
+            <details class="card fetch" id="fetchCard">
+                <summary>Or fetch series from the internet</summary>
+                <p class="lede" style="margin-top: 8px">Nothing is fetched until you press Fetch. Only the symbols you type are sent, to the site you choose, and the answer is read the same way as a file you chose yourself.</p>
+                <div class="fetch-row">
+                    <label class="field" style="margin-top: 0">Source
+                        <select id="fetchSource">
+                            <option value="yahoo">Yahoo Finance: stocks, indices, FX, futures, crypto</option>
+                            <option value="fred">FRED: rates and macro series</option>
+                            <option value="stooq">Stooq: stocks, indices, FX (daily)</option>
+                        </select></label>
+                    <label class="field" style="margin-top: 0">History
+                        <select id="fetchRange"><option value="1">1 year</option><option value="2" selected>2 years</option><option value="5">5 years</option></select></label>
+                </div>
+                <label class="field" style="max-width: none">Symbols, separated by commas
+                    <input type="text" id="fetchSymbols" value="BZ=F, JETS, GC=F, GDX, ^TNX, KBE, ^GSPC" autocomplete="off" spellcheck="false"></label>
+                <p class="lede" id="fetchHint" style="margin-top: 6px"></p>
+                <div class="actions" style="margin-top: 10px"><button class="button" type="button" id="fetchNow">Fetch</button></div>
+                <div id="fetchStatus" aria-live="polite"></div>
+            </details>
+            <div class="actions">
+                <button class="button primary" type="button" id="readData" disabled>Read my series</button>
+                <button class="button" type="button" id="useSample">Use the sample series</button>
+                <button class="button link" type="button" data-page="dataFormat">What do the files need?</button>
+            </div>
+            <div id="importStatus" aria-live="polite"></div>
+            <div id="importResult"></div>
+        </section>
+
+        <section class="panel" id="panel-links" aria-labelledby="title-links">
+            <header>
+                <h2 id="title-links">Which series lead which</h2>
+                <p class="lede">Konjugate looks for series whose past moves help predict another's, in several separate stretches of history. A link that keeps its direction and delay across stretches is worth more than one that appears once.</p>
+            </header>
+            <div class="card controls" id="linkControls"></div>
+            <div id="linkStatus" aria-live="polite"></div>
+            <div id="linkResult"></div>
+            <div class="card hidden" id="refreshCard"></div>
+        </section>
+
+        <section class="panel" id="panel-whatif" aria-labelledby="title-whatif">
+            <header>
+                <h2 id="title-whatif">Shock a series</h2>
+                <p class="lede">Each scenario runs the model twice from the latest bar: once as it is, and once with a shock, so you can see what the shock changes through the links you kept.</p>
+            </header>
+            <div class="scenarios" id="scenarioList" role="group" aria-label="Scenarios"></div>
+            <div class="detail card hidden" id="scenarioDetail"></div>
+            <div class="actions"><button class="button primary" type="button" id="runScenario" disabled>Run scenario</button></div>
+            <div id="runStatus" aria-live="polite"></div>
+        </section>
+
+        <section class="panel" id="panel-results" aria-labelledby="title-results">
+            <header>
+                <h2 id="title-results">Results</h2>
+                <p class="headline" id="headline"></p>
+            </header>
+            <div class="grid tiles" id="tiles"></div>
+            <div class="card chart-card">
+                <h4>Extra price change caused by the shock, in percent, against a run with no shock</h4>
+                <div id="chart"></div>
+                <div class="legend" id="legend"></div>
+                <div class="hover-readout" id="readout" aria-live="off"></div>
+            </div>
+            <h3>All series</h3>
+            <div class="card" style="padding: 6px 10px"><table id="resultTable"></table></div>
+            <div class="actions">
+                <button class="button primary" type="button" id="openCanvas">Open in Konjugate to inspect</button>
+                <button class="button" type="button" id="exportResults">Export results…</button>
+                <button class="button link" type="button" id="anotherScenario">Try another scenario</button>
+            </div>
+            <div id="exportStatus" aria-live="polite"></div>
+            <p class="footnote">This is what the links found in past data imply for a shock, not a forecast. Open in Konjugate shows both runs in the full canvas, where every equation can be inspected.</p>
+        </section>
+
+        <section class="panel" id="panel-learn" aria-labelledby="title-learn">
+            <header>
+                <h2 id="title-learn">Learn</h2>
+                <p class="lede">Short guides, bundled with this package so they work with no network connection.</p>
+            </header>
+            <div class="learn" id="learnCards"></div>
+        </section>
+    </main>
+    <script type="module" src="markets.mjs"></script>
+</body>
+</html>

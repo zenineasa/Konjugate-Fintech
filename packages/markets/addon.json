@@ -1,0 +1,147 @@
+{
+    "addonId": "konjugate.fintech.markets",
+    "name": "Fintech Markets",
+    "version": "0.1.0",
+    "apiVersion": 1,
+    "kind": "launcher",
+    "entry": "index.html",
+    "copyright": "Copyright © 2026 Zenin Easa Panthakkalakath",
+    "permissions": [
+        "data.import",
+        "scenario.run",
+        "model.open",
+        "results.export",
+        "pages.open",
+        "analysis.infer",
+        "network.fetch"
+    ],
+    "contributes": {
+        "toolstrip": [
+            {
+                "commandId": "openMarkets",
+                "label": "Markets",
+                "tooltip": "Open the Fintech markets window",
+                "symbol": "◇",
+                "when": "always",
+                "contexts": []
+            }
+        ],
+        "importers": [
+            {
+                "importerId": "marketSeries",
+                "name": "Market series",
+                "entry": "importers/marketSeries.mjs",
+                "files": [
+                    {
+                        "role": "series",
+                        "label": "Price or rate series",
+                        "required": true,
+                        "multiple": true,
+                        "accept": [
+                            "csv",
+                            "txt"
+                        ],
+                        "description": "One file per series, each with a date column and a price or rate column. Stooq, FRED and Yahoo Finance downloads and most spreadsheet exports work.",
+                        "sample": [
+                            "samples/Brent crude.csv",
+                            "samples/Airlines.csv",
+                            "samples/Gold.csv",
+                            "samples/Gold miners.csv",
+                            "samples/US 10y yield.csv",
+                            "samples/Banks.csv",
+                            "samples/S&P 500.csv"
+                        ]
+                    }
+                ]
+            }
+        ],
+        "scenarios": [
+            {
+                "scenarioId": "fall",
+                "name": "A sharp fall in one series",
+                "description": "One series drops 5% in a single bar. See which others follow, and by how much, over the next weeks.",
+                "forkAt": 1,
+                "runTime": 21,
+                "choose": {
+                    "label": "Series that falls"
+                },
+                "effects": [
+                    "{entity} falls by about 5% in one bar, at the start of the run.",
+                    "Other series move only through the links found in your data."
+                ],
+                "interventions": [
+                    {
+                        "parameter": "shock",
+                        "target": "chosen",
+                        "value": -0.05,
+                        "duration": 1
+                    }
+                ]
+            },
+            {
+                "scenarioId": "rise",
+                "name": "A sharp rise in one series",
+                "description": "One series jumps 5% in a single bar. See what follows.",
+                "forkAt": 1,
+                "runTime": 21,
+                "choose": {
+                    "label": "Series that rises"
+                },
+                "effects": [
+                    "{entity} rises by about 5% in one bar, at the start of the run.",
+                    "Other series move only through the links found in your data."
+                ],
+                "interventions": [
+                    {
+                        "parameter": "shock",
+                        "target": "chosen",
+                        "value": 0.05,
+                        "duration": 1
+                    }
+                ]
+            },
+            {
+                "scenarioId": "selloff",
+                "name": "A broad sell-off",
+                "description": "Every series falls 3% in a single bar. Shows how the links amplify or damp a market-wide move.",
+                "forkAt": 1,
+                "runTime": 21,
+                "effects": [
+                    "Every series falls by about 3% in one bar, at the start of the run."
+                ],
+                "interventions": [
+                    {
+                        "parameter": "shock",
+                        "target": "all",
+                        "value": -0.03,
+                        "duration": 1
+                    }
+                ]
+            }
+        ],
+        "pages": [
+            {
+                "pageId": "gettingStarted",
+                "label": "Getting started",
+                "entry": "help/gettingStarted.html"
+            },
+            {
+                "pageId": "dataFormat",
+                "label": "Data format",
+                "entry": "help/dataFormat.html"
+            },
+            {
+                "pageId": "assumptions",
+                "label": "Assumptions and limits",
+                "entry": "help/assumptions.html"
+            }
+        ]
+    },
+    "network": {
+        "hosts": [
+            "query1.finance.yahoo.com",
+            "fred.stlouisfed.org",
+            "stooq.com"
+        ]
+    }
+}

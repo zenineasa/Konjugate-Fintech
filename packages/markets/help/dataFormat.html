@@ -1,0 +1,25 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Data format</title><link rel="stylesheet" href="_style.css"></head><body>
+<h1>Data format</h1>
+<p class="lede">One file per series. Files saved from Stooq, FRED, Yahoo Finance and most spreadsheets work as they are.</p>
+
+<h2>What each file needs</h2>
+<ul>
+<li>A <b>date</b> column, headed Date, Observation date, Time or similar. Dates may be 2026-09-19, 19/09/2026, 19.09.2026 or 09/19/2026. Where a file uses slashes, day-first is assumed unless a date such as 09/19/2026 shows otherwise.</li>
+<li>A <b>value</b> column, headed Close, Adj Close, Price, Value, Last or similar. If none matches, the first column that is not the date is used.</li>
+<li>Rows in any order, newest first or oldest first. If a date appears twice, the last row is kept.</li>
+<li>The series is named after the file: <i>Brent crude.csv</i> becomes Brent crude. Two files may not have the same name.</li>
+</ul>
+
+<h2>Numbers, delimiters and encodings</h2>
+<p>Commas, semicolons and tabs are recognised, as is Excel's <i>sep=</i> line. Decimal commas (1.234,5), thousands separators, currency symbols and (1,234) negatives are read. UTF-8, UTF-16 and Windows-1252 files are read, and the window says when a file was not UTF-8.</p>
+
+<h2>What is repaired or left out</h2>
+<ul>
+<li>Rows with no value, or a marker such as <i>.</i>, <i>NaN</i> or <i>null</i> (FRED uses a full stop), are left out, and the window says how many.</li>
+<li>Only dates every series has are used, so a series with a different calendar shrinks the sample. The window warns when a series loses more than 5% of its rows.</li>
+<li>Prices, which are always positive, become log returns. Rates and spreads, which can be zero or negative, become differences.</li>
+</ul>
+
+<h2>How much data</h2>
+<p>At least two series and 40 shared dates are needed, and at least 120 bars to compare separate stretches of history. Up to 40 series can be used. Daily bars are the usual choice; any regular bar size works, since a bar is one unit of time.</p>
+</body></html>

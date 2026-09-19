@@ -1,0 +1,29 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Assumptions and limits</title><link rel="stylesheet" href="_style.css"></head><body>
+<h1>Assumptions and limits</h1>
+<p class="lede">What a link is, why it comes and goes, and how the what-if is built.</p>
+
+<h2>What a link is</h2>
+<p>A link from A to B means A's move one bar ago helps predict B's move now, on data the fit had not seen. It is a statistical lead, not proof that A causes B, and markets change: a link found in one stretch of history often disappears in the next. That is why each link is tested in several separate stretches, and why its steadiness is shown next to it.</p>
+
+<h2>What is deliberately left out</h2>
+<ul>
+<li>Pairs that only move together in the same bar have no time order, so they are listed apart from lead-lag links. In real daily data these are far steadier than leads and lags (gold miners with gold, airlines with the market), but the data cannot say which drives which; where both directions appear, the one into the more volatile series is ticked, the way a beta is read, and you can change it.</li>
+<li>Stretches do not overlap, because overlapping stretches share bars and would count one chance correlation many times. The window says when they overlap.</li>
+<li>Links with a delay of more than one bar may be missed, because the first screening looks at one-bar delays. For daily data this matters little.</li>
+</ul>
+
+<h2>How the what-if is built</h2>
+<ul>
+<li>Each series has a return per bar that follows the links you kept, and a running price change that adds it up. A bar is one unit of time.</li>
+<li>Every return fades towards zero: at the rate fitted from the data if one was found, and within about a bar otherwise. Without this a shock would carry on for ever.</li>
+<li>A shock adds to a series' return for one bar. Its effect elsewhere follows only the links you kept: a same-bar link makes the follower respond within about a bar, by the size shown, and a lead-lag link about a bar later.</li>
+<li>Checked against the recurrence fitted to the data, a shock's effect on a linked series came within a few percent of what the fitted link implies. The link itself is estimated, and estimates of a real effect tend to be a little smaller than the truth.</li>
+</ul>
+
+<h2>Limits</h2>
+<ul>
+<li>This is not a forecast, and it has not been validated against real markets or reviewed by a practitioner.</li>
+<li>Only linear relationships between changes are modelled. Volatility, correlation breakdowns in a crisis and liquidity are not.</li>
+<li>Prices in your files are taken as given: splits, dividends and stale quotes change the result and are not adjusted for.</li>
+</ul>
+</body></html>
