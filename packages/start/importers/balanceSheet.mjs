@@ -110,9 +110,9 @@ export default async function importData({ files, helpers }) {
                 const number = parseNumber(values[located[key]]);
                 if (number.blank) {
                     if (key === 'equity') record.blankEquity = true;
-                    else if (['cash', 'loans', 'deposits'].includes(key)) fail(institutionsName, line, canonicalNames[key], `${name}: ${canonicalNames[key]} is blank.`);
-                } else if (number.invalid) fail(institutionsName, line, canonicalNames[key], `${name}: "${values[located[key]]}" in ${canonicalNames[key]} is not a number.`);
-                else if (number.value < 0) fail(institutionsName, line, canonicalNames[key], `${name}: ${canonicalNames[key]} is negative (${format(number.value)}); balances must be zero or more.`);
+                    else if (['cash', 'loans', 'deposits'].includes(key)) { record.invalid = true; fail(institutionsName, line, canonicalNames[key], `${name}: ${canonicalNames[key]} is blank.`); }
+                } else if (number.invalid) { record.invalid = true; fail(institutionsName, line, canonicalNames[key], `${name}: "${values[located[key]]}" in ${canonicalNames[key]} is not a number.`); }
+                else if (number.value < 0) { record.invalid = true; fail(institutionsName, line, canonicalNames[key], `${name}: ${canonicalNames[key]} is negative (${format(number.value)}); balances must be zero or more.`); }
                 else record[key] = number.value;
             }
             if (located.equity === undefined) record.blankEquity = true;
@@ -193,8 +193,11 @@ export default async function importData({ files, helpers }) {
     }
 
     // ---- balance sheets ------------------------------------------------------------------------------
-    if (!errors.length) {
+    // Checked for every row whose numbers parsed, even when other rows have problems, so one pass shows
+    // the user everything wrong with the file instead of one batch at a time.
+    if (institutions.length) {
         for (const record of institutions) {
+            if (record.invalid) continue;
             record.interbankAssets ??= 0;
             record.interbankLiabilities ??= 0;
             const assets = record.cash + record.loans + record.interbankAssets;
@@ -227,6 +230,8 @@ export default async function importData({ files, helpers }) {
         equityRatio: record.assets ? record.equity / record.assets : null,
         interbankAssets: record.interbankAssets ?? 0, interbankLiabilities: record.interbankLiabilities ?? 0
     }));
+    // Problems in the order the user meets them in their spreadsheet.
+    errors.sort((left, right) => (left.line ?? 0) - (right.line ?? 0));
     if (errors.length) return { ok: false, report: { errors, warnings, summary, institutions: preview } };
 
     // ---- build the model -----------------------------------------------------------------------------

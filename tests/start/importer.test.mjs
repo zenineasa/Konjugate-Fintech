@@ -67,6 +67,15 @@ test('problems are reported against the row that caused them', async () => {
     assert.equal(imbalanced.report.errors[0].column, 'balance sheet');
 });
 
+test('every problem in a file is reported in one pass', async () => {
+    const result = await run(`${header}Alpha,10,80,0,90,0,7\nAlpha,10,80,0,90,0,5\nBeta,ten,80,0,90,0,5\nGamma,10,80,0,90,0,5\n`);
+    assert.equal(result.ok, false);
+    const messages = result.report.errors.map((error) => `${error.line}: ${error.message}`);
+    assert.ok(messages.some((message) => /^3: "Alpha" appears more than once/.test(message)), messages.join('\n'));
+    assert.ok(messages.some((message) => /^4: Beta: "ten" in cash_and_reserves is not a number/.test(message)), messages.join('\n'));
+    assert.ok(messages.some((message) => /^2: Alpha: assets 90 do not equal liabilities and equity 97/.test(message)), 'the imbalance is reported alongside the other problems');
+});
+
 test('exposures are checked against the institutions and against each institution\'s totals', async () => {
     const institutions = `${header}Alpha,10,70,20,90,0,10\nBeta,10,110,0,90,20,10\n`;
     assert.equal((await run(institutions, 'lender,borrower,amount\nAlpha,Beta,20\n')).ok, true);

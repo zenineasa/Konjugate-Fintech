@@ -329,6 +329,7 @@ try {
         start.on('pageerror', (error) => startLog.push(`pageerror: ${error.message.slice(0, 300)}`));
         await start.waitForLoadState('domcontentloaded');
         await start.waitForSelector('#slots .slot', { timeout: 15000 }).catch((error) => { throw new Error(`${error.message}\nStart window log:\n${startLog.join('\n')}\nURL: ${start.url()}`); });
+        await start.waitForSelector('.konjugateAddonIdentity > img', { timeout: 10000 });
         assert.equal(await start.locator('#slots .slot').count(), 2, 'The window offers an institutions slot and an exposures slot.');
         assert.equal(await start.locator('#checkData').isDisabled(), true, 'Nothing can be checked before a required file is chosen.');
         assert.equal(await start.locator('.step[data-step="scenario"]').isDisabled(), true);
