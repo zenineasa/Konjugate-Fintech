@@ -109,6 +109,27 @@ Prompted by three points from use: users need more flexibility over the data ran
 
 **As-of date and backtest.** The end of the chosen range is the as-of date: links are learned only from data up to it. The bars held back after it are what really happened. A plain projection of returns is close to flat, so the comparison is conditional: real moves of chosen series are replayed through the model (each series has a tracking gain and a driven return alongside its shock, so its return follows a supplied path), and the others are compared with what they did and with a guess of no change. The path is supplied through a generic core feature: a scenario intervention with a `supplied` target, followed as a piecewise schedule.
 
-**What the backtest showed (real data).** Seven series, five years of daily bars, 21 bars replayed from twelve as-of dates: 26 comparisons, the model closer than a guess of no change 16 times (62%) and right on direction 17 times (65%). Gold and gold miners were closer every time (7 of 7); oil only 3 of 8; the index 1 of 3. Twenty-six overlapping comparisons are suggestive, not conclusive, and the test rewards real same-bar links, since the replayed series' real moves carry that information. `node scripts/marketBacktest.mjs` reproduces it.
+**What the backtest showed (real data, first run, before the drift fix below).** Seven series, five years of daily bars, 21 bars replayed from twelve as-of dates: 26 comparisons, the model closer than a guess of no change 16 times (62%) and right on direction 17 times (65%). Gold and gold miners were closer every time (7 of 7); oil only 3 of 8; the index 1 of 3. Twenty-six overlapping comparisons are suggestive, not conclusive, and the test rewards real same-bar links, since the replayed series' real moves carry that information. `node scripts/marketBacktest.mjs` reproduces it.
 
-**Still open.** Saving a user's own groups. Comparing the model against a stronger benchmark than no change (a market-beta model). Intraday backtests. A projection with a range around it.
+## Third version: the open items
+
+**Own groups.** A selection of two or more series can be saved as a named group, kept in the window's own storage on this computer and listed first in the Groups tab, where it can be added, ticked member by member, or deleted.
+
+**A stronger benchmark.** The replay scorecard can add a market-beta guess: each series' usual beta to a chosen market series (the S&P 500 is picked when present), estimated over the last 250 bars of the chosen range, times what that series really did. Beating "no change" is a low bar; beating this is a better test of whether the links add anything beyond following the market.
+
+**Projection with a range.** "Project forward" runs the model with nothing shocked and draws its path with 68% and 95% ranges from how much each series moved in the chosen range (spread growing with the square root of the bars). Bars held back are drawn against it, and the window counts how many series ended inside each range, which should be about two in three and nineteen in twenty if the ranges are right.
+
+**The links as a graph.** The links that will go into the model are drawn between the series (solid for lead-lag, dashed for same-bar, teal for moves-with, coral for moves-against) and update as links are ticked.
+
+**Intraday.** Hourly bars are named by their hour, so a stock's bar opening at half past lines up with a future's on the hour; before this, an intraday set of mixed series shared almost no bars. Backtests take a bar size (`node scripts/marketBacktest.mjs 21 'GC=F,GDX,JETS,BZ=F,KBE,^GSPC' 1h`).
+
+**A drift bug found by looking at a result.** A fitted link carries a constant, the target's average drift over the learning window, and the model was carrying it forward, so a series that happened to drift down in the window was projected down. On the sample series, Gold miners were projected to fall 12.7% over 21 bars against a real move of about +1%. The constants are now left out unless asked for (`keepIntercepts`), i.e. zero drift. Backtests, which is what should have caught it: daily, closer than no change 62% -> 67% and closer than the market guess 61% -> 73%; hourly, closer than no change 50% -> 63% and closer than the market guess 31% -> 50%.
+
+**What the benchmarks showed (real data, zero drift).**
+- Daily, 21 bars from twelve as-of dates, seven series: 24 comparisons, closer than no change 16 (67%), direction right 16 (67%), closer than the S&P 500 beta guess 16 of 22 (73%).
+- Hourly, 21 bars, six series over about two years: 16 comparisons, closer than no change 10 (63%), direction right 10 (63%), closer than the beta guess 8 of 16 (50%).
+- So the model does better than guessing no change, and on daily bars somewhat better than a market-beta guess, but on hourly bars it is level with one. Sixteen to twenty-four overlapping comparisons cannot separate these from chance, and the daily set includes gold and gold miners, which the model gets right every time. The honest reading is that the links add something beyond a market beta on daily bars for a few pairs, and little elsewhere.
+
+**Sources.** FRED did not answer from the test machine on either day it was tried, and Stooq answers with a browser check instead of data, so only Yahoo Finance is verified. Rates are available from Yahoo (`^IRX`, `^FVX`, `^TNX`, `^TYX`).
+
+**Still open.** Non-Yahoo sources that can be verified; a projection that uses the model's own uncertainty; longer-delay lead-lag links (a limit in core's screening); a check of intraday links with sessions that differ (futures trade overnight, stocks do not).

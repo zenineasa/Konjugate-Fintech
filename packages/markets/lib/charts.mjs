@@ -32,11 +32,11 @@ function niceStep(span) {
 
 // Lines over a shared x axis. series: [{ name, color, dashed, width, points: [[x, y], ...] }]. `format(y)` writes a value,
 // `markX` draws a dashed vertical line (where a shock starts). Wires a hover readout into `readout`.
-export function drawChart(container, readout, { series, maxX, markX = null, xLabel = 'bars', format = (value) => `${value}`, zeroLine = true }) {
+export function drawChart(container, readout, { series, bands = [], maxX, markX = null, xLabel = 'bars', format = (value) => `${value}`, zeroLine = true }) {
     const width = 860;
     const height = 300;
     const margin = { left: 58, right: 16, top: 16, bottom: 30 };
-    const values = series.flatMap((line) => line.points.map(([, y]) => y)).filter(Number.isFinite);
+    const values = [...series.flatMap((line) => line.points.map(([, y]) => y)), ...bands.flatMap((band) => band.points.flatMap(([, low, high]) => [low, high]))].filter(Number.isFinite);
     const rawLow = Math.min(...values, zeroLine ? 0 : Infinity);
     const rawHigh = Math.max(...values, zeroLine ? 0 : -Infinity);
     const tick = niceStep(Math.max(rawHigh - rawLow, 1e-9));
@@ -45,6 +45,8 @@ export function drawChart(container, readout, { series, maxX, markX = null, xLab
     const x = (value) => margin.left + (value / maxX) * (width - margin.left - margin.right);
     const y = (value) => margin.top + ((high - value) / (high - low)) * (height - margin.top - margin.bottom);
     const path = (points) => points.map(([px, py], index) => `${index ? 'L' : 'M'}${x(px).toFixed(1)},${y(py).toFixed(1)}`).join(' ');
+    // A band is the area between a lower and an upper value at each x, drawn behind the lines.
+    const bandPath = (points) => `${points.map(([px, low], index) => `${index ? 'L' : 'M'}${x(px).toFixed(1)},${y(low).toFixed(1)}`).join(' ')} ${[...points].reverse().map(([px, , high]) => `L${x(px).toFixed(1)},${y(high).toFixed(1)}`).join(' ')} Z`;
     const yTicks = [];
     for (let value = low; value <= high + tick / 1000; value += tick) yTicks.push(Number(value.toPrecision(10)));
     const xStep = maxX > 100 ? 20 : maxX > 40 ? 10 : maxX > 12 ? 5 : 1;
@@ -55,6 +57,7 @@ export function drawChart(container, readout, { series, maxX, markX = null, xLab
         ${xTicks.map((value) => `<text x="${x(value)}" y="${height - 8}" text-anchor="middle">${value}</text>`).join('')}
         <text x="${width - margin.right}" y="${height - 8}" text-anchor="end">${escapeHtml(xLabel)}</text>
         ${markX === null ? '' : `<line x1="${x(markX)}" x2="${x(markX)}" y1="${margin.top}" y2="${height - margin.bottom}" stroke="#8aa1af" stroke-dasharray="3 4"/>`}
+        ${bands.map((band) => `<path d="${bandPath(band.points)}" fill="${band.color}" fill-opacity="${band.opacity ?? 0.16}" stroke="none"/>`).join('')}
         ${series.map((line) => `<path d="${path(line.points)}" fill="none" stroke="${line.color}" stroke-width="${line.width ?? 2.4}"${line.dashed ? ' stroke-dasharray="6 4"' : ''}${line.faint ? ' opacity=".55"' : ''}/>`).join('')}
         <line class="cursor" x1="0" x2="0" y1="${margin.top}" y2="${height - margin.bottom}" stroke="#d9e6ec" stroke-opacity=".5" visibility="hidden"/>
         <rect class="hit" x="${margin.left}" y="${margin.top}" width="${width - margin.left - margin.right}" height="${height - margin.top - margin.bottom}" fill="transparent"/>

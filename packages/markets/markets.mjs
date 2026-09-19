@@ -26,7 +26,7 @@ const state = {
     read: null, excluded: new Set(), range: { from: 0, to: 0 },
     analysis: null, kept: new Set(), built: null, windowLength: null,
     scenarioId: null, entity: null, horizon: 21, drivers: new Set(), run: null,
-    busy: false, history: [], refresh: { minutes: 0, timer: null }
+    busy: false, history: [], refresh: { minutes: 0, timer: null }, myGroups: [], marketSeries: ''
 };
 
 // ---- steps and tabs ---------------------------------------------------------------------------------------
@@ -84,6 +84,7 @@ function renderTray() {
         : '<span class="empty">Nothing chosen yet. Search, or add a group.</span>';
     $('#fetchNow').disabled = state.busy || !entries.length;
     $('#clearSelection').disabled = !entries.length;
+    $('#saveGroupRow').classList.toggle('hidden', entries.length < 2);
     renderFetchNote();
     for (const box of document.querySelectorAll('[data-pick]')) box.checked = state.selection.has(box.dataset.pick);
     renderBasketButtons();
@@ -142,38 +143,72 @@ $('#searchResults').addEventListener('change', (event) => {
 
 // ---- groups -----------------------------------------------------------------------------------------------
 
+// The user's own groups are kept in the window's own storage, on this computer, and are simply absent where storage is not available.
+const groupsKey = 'konjugate.fintech.markets.groups';
+function loadMyGroups() {
+    try { return (JSON.parse(localStorage.getItem(groupsKey)) ?? []).filter((group) => group.name && Array.isArray(group.members)); } catch { return []; }
+}
+function storeMyGroups(list) {
+    try { localStorage.setItem(groupsKey, JSON.stringify(list)); return true; } catch { return false; }
+}
+const allGroups = () => [...state.myGroups.map((group) => ({ ...group, mine: true, about: `${group.members.length} series you saved` })), ...baskets];
+
 function renderBaskets() {
-    $('#basketList').innerHTML = baskets.map((basket, index) => `<details class="basket" data-basket="${index}"><summary>${escapeHtml(basket.name)} <span class="about">${escapeHtml(basket.about)}</span>
-        <button class="button" type="button" data-basket-all="${index}" style="padding: 3px 12px"></button></summary>
-        <div class="members">${basket.members.map((member) => `<label class="check"><input type="checkbox" data-pick="${escapeHtml(member.symbol)}" data-label="${escapeHtml(member.label)}"> ${escapeHtml(member.label)} <span class="sym">${escapeHtml(member.symbol)}</span></label>`).join('')}</div></details>`).join('');
+    $('#basketList').innerHTML = allGroups().map((basket, index) => `<details class="basket" data-basket="${index}"><summary>${escapeHtml(basket.name)} <span class="about">${escapeHtml(basket.about)}</span>
+        <button class="button" type="button" data-basket-all="${index}" style="padding: 3px 12px"></button>${basket.mine ? `<button class="button link delete" type="button" data-basket-delete="${index}">Delete</button>` : ''}</summary>
+        <div class="members">${basket.members.map((member) => `<label class="check"><input type="checkbox" data-pick="${escapeHtml(member.symbol)}" data-label="${escapeHtml(member.label)}" data-source="${escapeHtml(member.source ?? 'yahoo')}"> ${escapeHtml(member.label)} <span class="sym">${escapeHtml(member.symbol)}</span></label>`).join('')}</div></details>`).join('');
     renderBasketButtons();
+    for (const box of document.querySelectorAll('#basketList [data-pick]')) box.checked = state.selection.has(box.dataset.pick);
 }
 
 function renderBasketButtons() {
+    const groups = allGroups();
     for (const button of document.querySelectorAll('[data-basket-all]')) {
-        const basket = baskets[Number(button.dataset.basketAll)];
+        const basket = groups[Number(button.dataset.basketAll)];
+        if (!basket) continue;
         const all = basket.members.every((member) => state.selection.has(member.symbol));
         button.textContent = all ? 'Remove all' : `Add all ${basket.members.length}`;
     }
 }
 
 $('#basketList').addEventListener('click', (event) => {
+    const groups = allGroups();
+    const remove = event.target.dataset.basketDelete;
+    if (remove !== undefined) {
+        event.preventDefault();
+        state.myGroups.splice(Number(remove), 1);
+        storeMyGroups(state.myGroups);
+        renderBaskets();
+        return;
+    }
     const index = event.target.dataset.basketAll;
     if (index === undefined) return;
     event.preventDefault();
-    const basket = baskets[Number(index)];
+    const basket = groups[Number(index)];
     const all = basket.members.every((member) => state.selection.has(member.symbol));
     for (const member of basket.members) {
         if (all) state.selection.delete(member.symbol);
-        else state.selection.set(member.symbol, { source: 'yahoo', symbol: member.symbol, label: member.label });
+        else state.selection.set(member.symbol, { source: member.source ?? 'yahoo', symbol: member.symbol, label: member.label });
     }
     renderTray();
 });
 $('#basketList').addEventListener('change', (event) => {
     const box = event.target;
     if (!box.dataset.pick) return;
-    if (box.checked) addToSelection({ symbol: box.dataset.pick, label: box.dataset.label });
+    if (box.checked) addToSelection({ symbol: box.dataset.pick, label: box.dataset.label, source: box.dataset.source ?? 'yahoo' });
     else removeFromSelection(box.dataset.pick);
+});
+
+$('#saveGroup').addEventListener('click', () => {
+    const name = $('#groupName').value.trim();
+    if (!name || state.selection.size < 2) return;
+    const members = [...state.selection.values()].map(({ symbol, label, source }) => ({ symbol, label, source }));
+    const existing = state.myGroups.findIndex((group) => group.name.toLowerCase() === name.toLowerCase());
+    if (existing >= 0) state.myGroups[existing] = { name, members }; else state.myGroups.unshift({ name, members });
+    const stored = storeMyGroups(state.myGroups);
+    $('#groupName').value = '';
+    renderBaskets();
+    $('#fetchNote').textContent = stored ? `Saved “${name}” as a group. It is in the Groups tab.` : 'The group is available while this window is open, but this computer would not keep it.';
 });
 
 // ---- typed symbols ----------------------------------------------------------------------------------------
@@ -559,6 +594,53 @@ async function findLinks({ quiet = false } = {}) {
     }
 }
 
+// The links that will go into the model, drawn between the series: a solid line for a lead-lag link, a dashed one for
+// same-bar co-movement, teal where the follower moves with the driver and coral where it moves against it.
+function renderLinkGraph() {
+    const box = $('#linkGraph');
+    if (!box || !state.analysis) return;
+    const names = view().changes.names;
+    const byKey = new Map([...state.analysis.links, ...state.analysis.together].map((link) => [linkKey(link), link]));
+    const kept = [...state.kept].map((key) => byKey.get(key)).filter(Boolean);
+    const width = 720;
+    const height = 380;
+    const position = (name) => {
+        const index = names.findIndex((candidate) => safeName(candidate) === name);
+        const angle = (2 * Math.PI * index) / names.length - Math.PI / 2;
+        return { x: width / 2 + 250 * Math.cos(angle), y: height / 2 + 140 * Math.sin(angle), angle, index };
+    };
+    const linked = new Set(kept.flatMap((link) => [link.source, link.target]));
+    const edges = kept.map((link) => {
+        const from = position(link.source);
+        const to = position(link.target);
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const length = Math.hypot(dx, dy) || 1;
+        const bend = 22;
+        const control = { x: (from.x + to.x) / 2 - (dy / length) * bend, y: (from.y + to.y) / 2 + (dx / length) * bend };
+        const shorten = (point, other) => { const vx = other.x - point.x; const vy = other.y - point.y; const norm = Math.hypot(vx, vy) || 1; return { x: point.x + (vx / norm) * 9, y: point.y + (vy / norm) * 9 }; };
+        const start = shorten(from, control);
+        const end = shorten(to, control);
+        const color = link.sign < 0 ? '#ee8a7e' : '#45c6b8';
+        return `<path d="M${start.x.toFixed(1)},${start.y.toFixed(1)} Q${control.x.toFixed(1)},${control.y.toFixed(1)} ${end.x.toFixed(1)},${end.y.toFixed(1)}" fill="none" stroke="${color}" stroke-width="2" ${link.kind === 'together' ? 'stroke-dasharray="6 4"' : ''} marker-end="url(#arrow${link.sign < 0 ? 'Down' : 'Up'})"><title>${escapeHtml(nice(link.source))} → ${escapeHtml(nice(link.target))}</title></path>`;
+    }).join('');
+    const nodes = names.map((name) => {
+        const point = position(safeName(name));
+        const anchor = Math.cos(point.angle) > 0.3 ? 'start' : Math.cos(point.angle) < -0.3 ? 'end' : 'middle';
+        const label = name.length > 22 ? `${name.slice(0, 21)}…` : name;
+        const dx = Math.cos(point.angle) * 14;
+        const dy = Math.sin(point.angle) * 14 + (Math.abs(Math.cos(point.angle)) <= 0.3 ? (Math.sin(point.angle) > 0 ? 8 : -2) : 4);
+        return `<circle cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="${linked.has(safeName(name)) ? 6 : 4}" fill="${linked.has(safeName(name)) ? '#d9e6ec' : '#4a6072'}"/><text x="${(point.x + dx).toFixed(1)}" y="${(point.y + dy).toFixed(1)}" text-anchor="${anchor}" ${linked.has(safeName(name)) ? '' : 'opacity=".55"'}>${escapeHtml(label)}</text>`;
+    }).join('');
+    box.innerHTML = `<div class="title">The model as it will be built <span class="badge">${plural(kept.length, 'link')}</span></div>
+        <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="The links that will go into the model">
+            <defs><marker id="arrowUp" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#45c6b8"/></marker>
+            <marker id="arrowDown" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ee8a7e"/></marker></defs>
+            ${edges}${nodes}
+        </svg>
+        <p class="lede" style="margin: 0">Solid: one series leads another by a bar. Dashed: they move together in the same bar. Teal: the follower moves with the driver. Coral: against it.</p>`;
+}
+
 const labelText = { stable: 'Steady', sometimes: 'Comes and goes', unstable: 'Unsteady', 'too few windows to say': 'Too few stretches' };
 const labelClass = { stable: 'ok', sometimes: 'warn', unstable: 'bad', 'too few windows to say': 'warn' };
 
@@ -581,6 +663,7 @@ function renderLinks() {
     const last = analysis.windows[0];
     $('#linkResult').innerHTML = `
         ${notice('ok', `<strong>${analysis.windows.length === 1 ? '1 stretch' : `${analysis.windows.length} stretches`} of ${state.windowLength} bars examined</strong>, from ${escapeHtml(first.from)} to ${escapeHtml(last.to)}.${analysis.overlapping ? ' The stretches overlap, so the counts below overstate how steady a link is.' : ''}`)}
+        <div class="card link-graph" id="linkGraph"></div>
         <h3>Leads and lags</h3>
         <p class="lede" style="margin: 0 0 8px">One series' move helps predict another's move a bar later.</p>
         ${analysis.links.length ? `<div class="card" style="padding: 6px 10px"><table id="linkTable"><thead><tr><th>Use</th><th>Link</th><th>Effect</th><th>Delay</th><th>Seen in</th><th>How steady</th></tr></thead><tbody>${linkRows(analysis.links, false)}</tbody></table></div>`
@@ -606,9 +689,11 @@ function renderLinks() {
             state.built = null;
             state.run = null;
             $('#buildModel').textContent = `Build the model with ${plural(state.kept.size, 'link')}`;
+            renderLinkGraph();
             refreshSteps();
         });
     }
+    renderLinkGraph();
     $('#buildModel').addEventListener('click', buildModel);
 }
 
@@ -626,6 +711,7 @@ async function buildModel() {
         state.built = { report: result.report, entities: result.entities };
         state.run = null;
         state.drivers = defaultDrivers();
+        if (!state.built.entities.includes(state.marketSeries)) state.marketSeries = state.built.entities.find((name) => /S&P|GSPC|SPY\b|S&amp;P/i.test(name)) ?? '';
         $('#buildStatus').innerHTML = notice('ok', `<strong>Model built</strong> from ${plural(result.report.summary.links, 'link')}, as of ${escapeHtml(dates[state.range.to])}.${result.report.warnings.length ? `<ul>${result.report.warnings.map((item) => `<li>${escapeHtml(item.message)}</li>`).join('')}</ul>` : ''} <button class="button link" type="button" id="toWhatIf">Look ahead</button>`);
         $('#toWhatIf').addEventListener('click', () => { renderScenarios(); show('whatif'); });
         renderScenarios();
@@ -769,6 +855,9 @@ function renderScenarioDetail() {
             <select id="entityChoice">${entities.map((name) => `<option ${name === state.entity ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}</select></label>` : ''}
         ${replay ? `<div class="title">Series to replay</div><p class="lede" style="margin: 2px 0 0">Their real moves are played through the model. The ones ticked by default have a kept link going out of them.</p>
             <div class="driver-list">${entities.map((name) => `<label class="check"><input type="checkbox" data-driver="${escapeHtml(name)}" ${state.drivers.has(name) ? 'checked' : ''}> ${escapeHtml(name)}</label>`).join('')}</div>` : ''}
+        ${replay ? `<label class="field" style="margin-top: 16px">Also compare with a market guess using
+            <select id="marketChoice"><option value="">no market guess</option>${entities.filter((name) => isReturn(name)).map((name) => `<option ${name === state.marketSeries ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}</select></label>
+            <p class="lede" style="margin: 4px 0 0">A stronger guess than no change: each series moves by its usual beta to that series, using its real move.</p>` : ''}
         <label class="field" style="margin-top: ${scenario.choose || replay ? 16 : 0}px">How far ahead
             <select id="horizonChoice">${options.map((value) => `<option value="${value}" ${value === state.horizon ? 'selected' : ''}>${value} bars (${spanText(value)})</option>`).join('')}</select></label>
         <h3 style="margin-top: 18px">What this does</h3>
@@ -776,6 +865,7 @@ function renderScenarioDetail() {
         ${!replay && scenario.choose && !isReturn(state.entity) ? '<p class="lede" style="margin-top: 8px">This series is a rate, so the shock is in points, not percent: 0.05 is five basis points.</p>' : ''}`;
     $('#entityChoice')?.addEventListener('change', (event) => { state.entity = event.target.value; renderScenarioDetail(); });
     $('#horizonChoice').addEventListener('change', (event) => { state.horizon = Number(event.target.value); });
+    $('#marketChoice')?.addEventListener('change', (event) => { state.marketSeries = event.target.value; });
     for (const box of detail.querySelectorAll('[data-driver]')) {
         box.addEventListener('change', () => {
             if (box.checked) state.drivers.add(box.dataset.driver); else state.drivers.delete(box.dataset.driver);
@@ -808,6 +898,9 @@ $('#runScenario').addEventListener('click', async () => {
     try {
         const options = { entity: scenario.choose ? state.entity : null, signals: ['lvl'], runTime: state.horizon };
         let actual = null;
+        const project = scenario.scenarioId === 'project';
+        // A projection is compared with whatever bars were held back, up to its length.
+        if (project && remainingBars() > 0) actual = actualPaths(Math.min(state.horizon, remainingBars()));
         if (replay) {
             actual = actualPaths(state.horizon);
             const drivers = [...state.drivers];
@@ -815,7 +908,7 @@ $('#runScenario').addEventListener('click', async () => {
             options.supplied = { entities: drivers, samples: Object.fromEntries(drivers.map((name) => [name, actual[name].flatMap((value, k) => [[k + 0.001, value], [k + 0.999, value]])])) };
         }
         const data = await call(api.runScenario(scenario.scenarioId, options));
-        state.run = { scenario, data, replay, entity: scenario.choose ? state.entity : null, horizon: state.horizon, drivers: replay ? [...state.drivers] : [], actual };
+        state.run = { scenario, data, replay, project, kind: replay ? 'replay' : project ? 'project' : 'shock', entity: scenario.choose ? state.entity : null, horizon: state.horizon, drivers: replay ? [...state.drivers] : [], actual, market: replay && state.marketSeries && isReturn(state.marketSeries) ? state.marketSeries : '' };
         $('#runStatus').replaceChildren();
         renderResults();
         refreshSteps();
@@ -847,6 +940,20 @@ function summarizeShock(data) {
     return { rows: [...rows].sort((left, right) => Math.abs(right.end) - Math.abs(left.end)), others, shocked };
 }
 
+// A series' usual sensitivity to another: the slope of its changes on the other's over the last stretch of the chosen range.
+function betaAgainst(name, market) {
+    const { changes } = view();
+    const y = changes.columns[changes.names.indexOf(name)].slice(-250);
+    const x = changes.columns[changes.names.indexOf(market)].slice(-250);
+    const mean = (values) => values.reduce((sum, value) => sum + value, 0) / values.length;
+    const mx = mean(x);
+    const my = mean(y);
+    let covariance = 0;
+    let variance = 0;
+    for (let index = 0; index < x.length; index += 1) { covariance += (x[index] - mx) * (y[index] - my); variance += (x[index] - mx) ** 2; }
+    return variance ? covariance / variance : 0;
+}
+
 // Replayed real moves against what happened: for each series that was not itself replayed, how far the model was from the
 // actual outcome, and how far a guess of no change would have been.
 function summarizeReplay(data) {
@@ -862,18 +969,30 @@ function summarizeReplay(data) {
         const simulated = path.at(-1)?.[1] ?? 0;
         const actual = actualPath.at(-1)[1];
         const driver = run.drivers.includes(name);
+        // The market guess: the series' usual beta to the chosen market series, times what that series really did.
+        let marketGuess = null;
+        if (run.market && name !== run.market && isReturn(name)) {
+            const marketTotal = run.actual[run.market].reduce((sum, value) => sum + value, 0);
+            marketGuess = toDisplay(name, betaAgainst(name, run.market) * marketTotal);
+        }
         // A series counts only if the model moved it at all; otherwise its guess is the no-change guess.
         const moved = Math.abs(simulated) >= (isReturn(name) ? 0.05 : 0.005);
-        return { name, path, actualPath, simulated, actual, driver, scored: !driver && moved, closer: Math.abs(actual - simulated) < Math.abs(actual), sameSide: Math.sign(actual) === Math.sign(simulated) };
+        const errors = { model: Math.abs(actual - simulated), none: Math.abs(actual), ...(marketGuess === null ? {} : { market: Math.abs(actual - marketGuess) }) };
+        return { name, path, actualPath, simulated, actual, driver, marketGuess, scored: !driver && moved, closer: errors.model < errors.none, beatsMarket: marketGuess === null ? null : errors.model < errors.market, best: Object.entries(errors).sort((a, b) => a[1] - b[1])[0][0], sameSide: Math.sign(actual) === Math.sign(simulated) };
     });
     return { rows, scored: rows.filter((row) => row.scored), drivers: rows.filter((row) => row.driver) };
 }
 
 function renderResults() {
-    if (state.run.replay) renderReplayResults(); else renderShockResults();
-    $('#resultFootnote').textContent = state.run.replay
-        ? 'The model is fed only the real moves of the series you chose. Beating a guess of no change on one or two series is a data point, not proof: prices are noisy, and a model that finds nothing looks the same as a guess of no change.'
-        : 'This is what the links found in past data imply for a shock, not a forecast. Open in Konjugate shows both runs in the full canvas, where every equation can be inspected.';
+    $('#projectPick').classList.toggle('hidden', state.run.kind !== 'project');
+    if (state.run.kind === 'replay') renderReplayResults();
+    else if (state.run.kind === 'project') renderProjectResults();
+    else renderShockResults();
+    $('#resultFootnote').textContent = {
+        replay: 'The model is fed only the real moves of the series you chose. Beating a guess of no change on one or two series is a data point, not proof: prices are noisy, and a model that finds nothing looks the same as a guess of no change.',
+        project: 'The path is what the links imply with nothing shocked, which is close to flat because returns are close to unpredictable. The range around it comes from how much each series moved in the range you chose, and is not a prediction of where it will go. About two in three series should end inside the 68% range.',
+        shock: 'This is what the links found in past data imply for a shock, not a forecast. Open in Konjugate shows both runs in the full canvas, where every equation can be inspected.'
+    }[state.run.kind];
 }
 
 function renderShockResults() {
@@ -911,25 +1030,107 @@ function renderReplayResults() {
     const wins = summary.scored.filter((row) => row.closer);
     const names = summary.drivers.map((row) => row.name).join(', ');
     $('#title-results').textContent = `${scenario.name}: ${names}`;
+    const marketRows = summary.scored.filter((row) => row.beatsMarket !== null);
+    const beatsMarket = marketRows.filter((row) => row.beatsMarket);
     $('#headline').textContent = summary.scored.length
-        ? `With the real moves of ${names} replayed for ${horizon} bars, the model was closer than a guess of no change for ${wins.length} of ${summary.scored.length} series it moved${summary.scored.length === 1 ? '' : `, and called the direction right for ${summary.scored.filter((row) => row.sameSide).length}`}.`
+        ? `With the real moves of ${names} replayed for ${horizon} bars, the model was closer than a guess of no change for ${wins.length} of ${summary.scored.length} series it moved${summary.scored.length === 1 ? '' : `, and called the direction right for ${summary.scored.filter((row) => row.sameSide).length}`}.${marketRows.length ? ` Against a ${state.run.market} beta guess it was closer for ${beatsMarket.length} of ${marketRows.length}.` : ''}`
         : `Nothing but ${names} moved in the model, so there is nothing to compare: none of the links you kept leads out of the series replayed. Replay a different series, or keep more links.`;
     const best = [...summary.scored].sort((a, b) => Math.abs(b.actual) - Math.abs(a.actual))[0];
     $('#tiles').innerHTML = [
         `<div class="tile ${wins.length === summary.scored.length && summary.scored.length ? 'good' : ''}"><div class="label">Closer than no change</div><div class="value">${wins.length} of ${summary.scored.length}</div><div class="sub">series the model moved</div></div>`,
-        `<div class="tile"><div class="label">Direction right</div><div class="value">${summary.scored.filter((row) => row.sameSide).length} of ${summary.scored.length}</div><div class="sub">same sign as what happened</div></div>`,
+        marketRows.length
+            ? `<div class="tile ${beatsMarket.length === marketRows.length ? 'good' : ''}"><div class="label">Closer than market guess</div><div class="value">${beatsMarket.length} of ${marketRows.length}</div><div class="sub">beta to ${escapeHtml(state.run.market)}</div></div>`
+            : `<div class="tile"><div class="label">Direction right</div><div class="value">${summary.scored.filter((row) => row.sameSide).length} of ${summary.scored.length}</div><div class="sub">same sign as what happened</div></div>`,
         best ? `<div class="tile"><div class="label">Biggest move</div><div class="value">${change(best.name, best.actual)}</div><div class="sub">${escapeHtml(best.name)} actually; model ${change(best.name, best.simulated)}</div></div>` : '<div class="tile"><div class="label">Biggest move</div><div class="value">—</div></div>',
         `<div class="tile"><div class="label">As of</div><div class="value" style="font-size: 18px">${escapeHtml(state.read.data.dates[state.range.to])}</div><div class="sub">${plural(horizon, 'bar')} replayed</div></div>`
     ].join('');
     $('#chartTitle').textContent = 'What the model expects (solid) and what really happened (dashed), change since the as-of date';
     $('#tableTitle').textContent = 'Model against what happened';
-    $('#resultTable').innerHTML = `<thead><tr><th>Series</th><th>What happened</th><th>Model</th><th>Guess of no change</th><th>Closer</th></tr></thead><tbody>${summary.rows.map((row) => `<tr><td>${escapeHtml(row.name)}${row.driver ? ' <span class="badge">replayed</span>' : ''}</td><td>${change(row.name, row.actual, 2)}</td><td>${change(row.name, row.simulated, 2)}</td><td>${change(row.name, 0, 2)}</td>
-        <td>${row.driver ? '<span class="empty">held to its real path</span>' : !row.scored ? '<span class="empty">not moved by the model</span>' : row.closer ? '<span class="score-good">model</span>' : '<span class="score-bad">no change</span>'}</td></tr>`).join('')}</tbody>`;
+    const hasMarket = marketRows.length > 0;
+    const closestLabel = { model: '<span class="score-good">model</span>', none: '<span class="score-bad">no change</span>', market: '<span class="score-bad">market guess</span>' };
+    $('#resultTable').innerHTML = `<thead><tr><th>Series</th><th>What happened</th><th>Model</th><th>Guess of no change</th>${hasMarket ? '<th>Market guess</th>' : ''}<th>Closest</th></tr></thead><tbody>${summary.rows.map((row) => `<tr><td>${escapeHtml(row.name)}${row.driver ? ' <span class="badge">replayed</span>' : ''}</td><td>${change(row.name, row.actual, 2)}</td><td>${change(row.name, row.simulated, 2)}</td><td>${change(row.name, 0, 2)}</td>${hasMarket ? `<td>${row.marketGuess === null ? '—' : change(row.name, row.marketGuess, 2)}</td>` : ''}
+        <td>${row.driver ? '<span class="empty">held to its real path</span>' : !row.scored ? '<span class="empty">not moved by the model</span>' : closestLabel[row.best]}</td></tr>`).join('')}</tbody>`;
     const shown = (summary.scored.length ? summary.scored : summary.drivers).slice(0, 5);
     const lines = shown.flatMap((row, index) => [{ name: row.name, color: palette[index], points: row.path }, { name: row.name, color: palette[index], points: row.actualPath, dashed: true, width: 2 }]);
     $('#legend').innerHTML = `${shown.map((row, index) => `<span><i style="border-color:${palette[index]}"></i>${escapeHtml(row.name)}</span>`).join('')}<span><i class="dashed" style="border-color:#8aa1af"></i>dashed: what happened</span>`;
     drawChart($('#chart'), $('#readout'), { series: lines, maxX: horizon, markX: 0, format: (value) => `${Number(value.toPrecision(3))}` });
 }
+
+// ---- projection: a path with a range, and what happened ------------------------------------------------
+
+// How much a series moves in a bar, from the last stretch of the chosen range: the standard deviation of its changes.
+function barSpread(name) {
+    const { changes } = view();
+    const values = changes.columns[changes.names.indexOf(name)].slice(-250);
+    const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+    return Math.sqrt(values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length);
+}
+
+function summarizeProject(data) {
+    const [, scenario] = data.branches;
+    const run = state.run;
+    const available = run.actual ? run.actual[state.read.data.names[0]].length : 0;
+    const rows = state.read.data.names.map((name) => {
+        const expected = (scenario.series[name]?.lvl ?? []).map(([time, value]) => [time, value]);
+        const sigma = barSpread(name);
+        // A random walk's spread grows with the square root of the bars; the range is that spread around the model's path.
+        const around = (z) => expected.map(([time, value]) => [time, toDisplay(name, value - z * sigma * Math.sqrt(time)), toDisplay(name, value + z * sigma * Math.sqrt(time))]);
+        const band68 = around(1);
+        const band95 = around(1.96);
+        let running = 0;
+        const actualPath = run.actual ? [[0, 0], ...run.actual[name].map((value, k) => { running += value; return [k + 1, toDisplay(name, running)]; })] : null;
+        const at = actualPath ? actualPath.length - 1 : 0;
+        const bandAt = (band) => band.find(([time]) => Math.abs(time - at) < 0.51) ?? band.at(-1);
+        const inside = (band) => (actualPath ? actualPath[at][1] >= bandAt(band)[1] && actualPath[at][1] <= bandAt(band)[2] : null);
+        return {
+            name, path: expected.map(([time, value]) => [time, toDisplay(name, value)]), band68, band95, actualPath,
+            end: toDisplay(name, expected.at(-1)?.[1] ?? 0), half: (band68.at(-1)[2] - band68.at(-1)[1]) / 2,
+            actual: actualPath ? actualPath[at][1] : null, inside68: inside(band68), inside95: inside(band95)
+        };
+    });
+    return { rows, available, compared: rows.filter((row) => row.actual !== null) };
+}
+
+function drawProjection(summary, name) {
+    const row = summary.rows.find((item) => item.name === name) ?? summary.rows[0];
+    const { horizon } = state.run;
+    const series = [{ name: row.name, color: palette[0], points: row.path }];
+    if (row.actualPath) series.push({ name: row.name, color: palette[1], points: row.actualPath, dashed: true, width: 2 });
+    $('#legend').innerHTML = `<span><i style="border-color:${palette[0]}"></i>${escapeHtml(row.name)}: the model</span><span><i style="border-color:${palette[0]}; opacity:.4"></i>shaded: 68% and 95% ranges from past volatility</span>${row.actualPath ? `<span><i class="dashed" style="border-color:${palette[1]}"></i>what happened</span>` : ''}`;
+    drawChart($('#chart'), $('#readout'), {
+        series, bands: [{ color: palette[0], opacity: 0.1, points: row.band95 }, { color: palette[0], opacity: 0.2, points: row.band68 }],
+        maxX: horizon, markX: 0, format: (value) => `${Number(value.toPrecision(3))}`
+    });
+}
+
+function renderProjectResults() {
+    const { scenario, data, horizon } = state.run;
+    const summary = summarizeProject(data);
+    state.run.summary = summary;
+    const compared = summary.compared;
+    const inside68 = compared.filter((row) => row.inside68);
+    const inside95 = compared.filter((row) => row.inside95);
+    const largest = [...summary.rows].sort((a, b) => Math.abs(b.end) - Math.abs(a.end))[0];
+    const halves = summary.rows.filter((row) => isReturn(row.name)).map((row) => row.half).sort((a, b) => a - b);
+    const typical = halves.length ? halves[Math.floor(halves.length / 2)] : 0;
+    $('#title-results').textContent = scenario.name;
+    $('#headline').textContent = compared.length
+        ? `${summary.available < horizon ? `${plural(summary.available, 'bar')} later (all that were held back)` : `${plural(horizon, 'bar')} later`}, ${inside68.length} of ${compared.length} series ended inside the 68% range and ${inside95.length} inside the 95% range. About two in three and nineteen in twenty would be expected if the ranges were right.`
+        : `From ${state.read.data.dates[state.range.to]}, the model expects little movement over ${plural(horizon, 'bar')}: the largest is ${largest.name} at ${change(largest.name, largest.end)}, while past volatility allows about ±${typical.toFixed(1)}% for a typical price. Hold recent bars back to compare with what happens.`;
+    $('#tiles').innerHTML = [
+        `<div class="tile"><div class="label">Largest expected move</div><div class="value">${change(largest.name, largest.end)}</div><div class="sub">${escapeHtml(largest.name)}</div></div>`,
+        `<div class="tile"><div class="label">Typical 68% range</div><div class="value">±${typical.toFixed(1)}%</div><div class="sub">for a price, after ${plural(horizon, 'bar')}</div></div>`,
+        compared.length ? `<div class="tile ${inside68.length / compared.length >= 0.5 ? 'good' : 'bad'}"><div class="label">Inside the 68% range</div><div class="value">${inside68.length} of ${compared.length}</div><div class="sub">${inside95.length} inside the 95% range</div></div>` : '<div class="tile"><div class="label">Inside the 68% range</div><div class="value">—</div><div class="sub">nothing held back to compare</div></div>',
+        `<div class="tile"><div class="label">As of</div><div class="value" style="font-size: 18px">${escapeHtml(state.read.data.dates[state.range.to])}</div><div class="sub">${plural(state.range.to - state.range.from, 'bar')} of history</div></div>`
+    ].join('');
+    $('#chartTitle').textContent = 'The model’s path with the range past volatility allows, and what happened (percent for prices, points for rates)';
+    $('#tableTitle').textContent = 'All series';
+    $('#resultTable').innerHTML = `<thead><tr><th>Series</th><th>Model after ${horizon} bars</th><th>68% range</th><th>95% range</th>${compared.length ? '<th>What happened</th><th>Inside</th>' : ''}</tr></thead><tbody>${summary.rows.map((row) => `<tr><td>${escapeHtml(row.name)}</td><td>${change(row.name, row.end, 2)}</td><td>${change(row.name, row.band68.at(-1)[1], 1)} to ${change(row.name, row.band68.at(-1)[2], 1)}</td><td>${change(row.name, row.band95.at(-1)[1], 1)} to ${change(row.name, row.band95.at(-1)[2], 1)}</td>${compared.length ? `<td>${change(row.name, row.actual, 2)}</td><td>${row.inside68 ? '<span class="score-good">68%</span>' : row.inside95 ? '<span class="empty">95%</span>' : '<span class="score-bad">outside</span>'}</td>` : ''}</tr>`).join('')}</tbody>`;
+    $('#projectSeries').innerHTML = summary.rows.map((row) => `<option>${escapeHtml(row.name)}</option>`).join('');
+    drawProjection(summary, summary.rows[0].name);
+}
+
+$('#projectSeries').addEventListener('change', (event) => { if (state.run?.kind === 'project') drawProjection(state.run.summary, event.target.value); });
 
 $('#openCanvas').addEventListener('click', async () => {
     try {
@@ -941,13 +1142,20 @@ $('#openCanvas').addEventListener('click', async () => {
 });
 
 $('#exportResults').addEventListener('click', async () => {
-    const { summary, replay } = state.run;
+    const { summary, replay, kind } = state.run;
     const csvField = (value) => (/[",\n]/.test(String(value)) ? `"${String(value).replaceAll('"', '""')}"` : String(value));
-    const lines = replay
-        ? ['series,replayed,what_happened,model,no_change_guess,model_closer']
-        : ['series,extra_change,largest_extra_change,largest_at_bar,change_with_shock,change_with_no_shock'];
+    const lines = [{
+        replay: 'series,replayed,what_happened,model,no_change_guess,market_guess,closest',
+        project: 'series,model_after_horizon,range68_low,range68_high,range95_low,range95_high,what_happened,inside_range',
+        shock: 'series,extra_change,largest_extra_change,largest_at_bar,change_with_shock,change_with_no_shock'
+    }[kind]];
     for (const row of summary.rows) {
-        lines.push((replay ? [row.name, row.driver, row.actual, row.simulated, 0, row.scored ? row.closer : ''] : [row.name, row.end, row.peak, row.peakAt, row.scenarioEnd, row.baselineEnd]).map(csvField).join(','));
+        const fields = {
+            replay: [row.name, row.driver, row.actual, row.simulated, 0, row.marketGuess ?? '', row.driver || !row.scored ? '' : row.best],
+            project: [row.name, row.end, row.band68.at(-1)[1], row.band68.at(-1)[2], row.band95.at(-1)[1], row.band95.at(-1)[2], row.actual ?? '', row.actual === null ? '' : row.inside68 ? '68%' : row.inside95 ? '95%' : 'outside'],
+            shock: [row.name, row.end, row.peak, row.peakAt, row.scenarioEnd, row.baselineEnd]
+        }[kind];
+        lines.push(fields.map(csvField).join(','));
     }
     try {
         const result = await call(api.exportResults(state.run.scenario.scenarioId, { summaryCsv: `${lines.join('\n')}\n` }));
@@ -983,6 +1191,7 @@ function renderLearn() {
         state.scenarioId = state.manifest.scenarios[0]?.scenarioId ?? null;
         $('#fetchFrom').value = daysAgo(730);
         $('#fetchTo').value = today();
+        state.myGroups = loadMyGroups();
         renderSearchTypes();
         renderBaskets();
         renderSlot();

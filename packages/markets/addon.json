@@ -119,6 +119,25 @@
                 ]
             },
             {
+                "scenarioId": "project",
+                "name": "Project forward",
+                "description": "Run the model forward from the as-of date with nothing changed, with the range that past volatility allows. Bars held back are drawn against it.",
+                "forkAt": 1,
+                "runTime": 21,
+                "effects": [
+                    "Nothing is shocked: each series carries on from its latest move and fades, and the links pass what little movement there is along.",
+                    "The range around each path comes from how much the series moved in the range you chose, not from the model."
+                ],
+                "interventions": [
+                    {
+                        "parameter": "shock",
+                        "target": "all",
+                        "value": 0,
+                        "duration": 1
+                    }
+                ]
+            },
+            {
                 "scenarioId": "replay",
                 "name": "Replay real moves",
                 "description": "Play the real moves of the series you choose after the as-of date through the model, and compare what it expects of the others with what actually happened.",

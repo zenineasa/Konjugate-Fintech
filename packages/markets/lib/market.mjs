@@ -64,12 +64,16 @@ export function yahooChartToCsv(text, name) {
     if (!Array.isArray(stamps) || !Array.isArray(values)) throw new Error(`${name}: the answer holds no prices. Check the symbol.`);
     const offset = Number(result.meta?.gmtoffset) || 0;
     // Minute and hour bars keep their time of day (in the exchange's own clock); daily and longer keep the date only.
-    const intraday = /^\d+[mh]$/.test(String(result.meta?.dataGranularity ?? ''));
+    const granularity = String(result.meta?.dataGranularity ?? '');
+    const intraday = /^\d+[mh]$/.test(granularity);
     const lines = ['Date,Close'];
     stamps.forEach((stamp, index) => {
         if (values[index] === null || values[index] === undefined) return;
         const moment = new Date((stamp + offset) * 1000).toISOString();
-        lines.push(`${intraday ? `${moment.slice(0, 10)} ${moment.slice(11, 16)}` : moment.slice(0, 10)},${values[index]}`);
+        // Hourly bars are named by their hour: a stock's bar opens at half past and a future's on the hour, and they are the same
+        // hour of trading for the purpose of lining series up.
+        const clock = granularity === '1h' || granularity === '60m' ? `${moment.slice(11, 13)}:00` : moment.slice(11, 16);
+        lines.push(`${intraday ? `${moment.slice(0, 10)} ${clock}` : moment.slice(0, 10)},${values[index]}`);
     });
     return `${lines.join('\n')}\n`;
 }

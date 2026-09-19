@@ -142,3 +142,11 @@ test('a midnight bar is kept in an intraday file and dropped from a daily one', 
     const daily = parseSeriesFile('Date,Close\n2026-09-17 00:00:00,1\n2026-09-18 00:00:00,2\n', 'D');
     assert.deepEqual(daily.points.map((point) => point.date), ['2026-09-17', '2026-09-18']);
 });
+
+test('hourly bars are named by their hour, so a stock opening at half past lines up with a future on the hour', () => {
+    const chart = (offsetSeconds) => JSON.stringify({ chart: { result: [{ meta: { gmtoffset: 0, dataGranularity: '1h' }, timestamp: [1789723800 + offsetSeconds, 1789727400 + offsetSeconds, 1789731000 + offsetSeconds], indicators: { quote: [{ close: [1, 2, 3] }] } }], error: null } });
+    const stock = parseSeriesFile(chart(0), 'Stock');
+    const future = parseSeriesFile(chart(-1800), 'Future');
+    assert.deepEqual(stock.points.map((point) => point.date), future.points.map((point) => point.date));
+    assert.match(stock.points[0].date, /^2026-09-\d\d \d\d:00$/);
+});

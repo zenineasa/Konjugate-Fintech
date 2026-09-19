@@ -137,7 +137,9 @@ function buildStage(read, options) {
         const to = names.indexOf(bySafe.get(edge.targetColumn));
         const linear = [...edge.terms].sort((a, b) => a.degree - b.degree)
             .map((term) => signedTerm(term.coefficient, term.degree === 1 ? '\\mathrm{sourceRet}' : `\\mathrm{sourceRet}^{${term.degree}}`)).join(' ');
-        const latex = trimLeadingPlus(`${linear} ${signedTerm(edge.intercept, null)}`.trim());
+        // The constant in a fitted link is the average drift of the target over the learning window. Carried forward it pushes a
+        // series in whatever direction it happened to drift, which is noise, so it is left out unless asked for.
+        const latex = trimLeadingPlus(`${linear} ${options.keepIntercepts === true ? signedTerm(edge.intercept, null) : ''}`.trim());
         operations.push({ kind: 'addEdge', ref: `link${index}`, name: `${names[from]} → ${names[to]}`, sourceNodeRef: `n${from}`, targetNodeRef: `n${to}`, directionality: 'directed' });
         operations.push({ kind: 'setEdgeEquation', edgeRef: `link${index}`, outputStateRef: `r${to}`, latex });
     });

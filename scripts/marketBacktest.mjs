@@ -3,7 +3,8 @@
 // Backtests the link model on real Yahoo Finance data: learn up to a date some bars before the end, replay the real moves of
 // the driver series through the model for the bars after it, and compare each followed series with what it really did and
 // with a guess of no change. Repeated for several as-of dates, so it is not one lucky or unlucky comparison.
-// Usage: node scripts/marketBacktest.mjs [horizon] [symbols separated by commas]
+// Usage: node scripts/marketBacktest.mjs [horizon in bars] [symbols separated by commas] [bar size: 1d, 1h or 5m]
+// It also scores a market-beta guess (each series' usual beta to the S&P 500 times its real move) when ^GSPC is among the series.
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { fintechRoot, konjugateDir, konjugateModule } from './konjugatePaths.mjs';
@@ -14,12 +15,16 @@ const adapter = await import(pathToFileURL(konjugateModule('src/engineAdapter.mj
 const engineOptions = { applicationPath: konjugateDir, resourcesPath: '', packaged: false };
 const horizon = Number(process.argv[2] ?? 21);
 const symbols = (process.argv[3] ?? 'GC=F,GDX,JETS,BZ=F,KBE,^GSPC,^TNX').split(',');
+const interval = process.argv[4] ?? '1d';
+// Yahoo serves about 729 days of hourly bars and 59 days of five-minute bars.
+const firstSecond = interval === '1d' ? 0 : Math.floor(Date.now() / 1000) - (interval === '1h' ? 729 : 59) * 86400;
 const series = [];
 for (const symbol of symbols) {
-    const bytes = await host.fetchAllowed({ url: `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=0&period2=4102444800&interval=1d`, hosts: ['query1.finance.yahoo.com'] });
+    const bytes = await host.fetchAllowed({ url: `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${firstSecond}&period2=4102444800&interval=${interval}`, hosts: ['query1.finance.yahoo.com'] });
     series.push(parseSeriesFile(new TextDecoder().decode(bytes), symbol));
 }
 const aligned = alignSeries(series);
+if (aligned.dates.length < 250 + horizon * 13) throw new Error(`Only ${aligned.dates.length} shared bars; the backtest needs at least ${250 + horizon * 13}. Use fewer series or a longer history.`);
 console.log(`${aligned.names.length} series, ${aligned.dates.length} bars, ${aligned.dates[0]} to ${aligned.dates.at(-1)}`);
 const files = aligned.names.map((name, index) => ({ role: 'series', name: `${name}.csv`, text: `Date,Close\n${aligned.dates.map((date, row) => `${date},${aligned.columns[index][row]}`).join('\n')}\n`, encoding: 'utf-8' }));
 const addonDirectory = join(fintechRoot, 'packages', 'markets');
@@ -27,7 +32,8 @@ const importer = { entry: 'importers/marketSeries.mjs' };
 const infer = async (csv, config) => (await adapter.inferWithEngine(csv, config, engineOptions)).report;
 const safe = (name) => name.replace(/[^A-Za-z0-9_.-]+/g, '_');
 const kinds = toChanges(aligned).kinds;
-const tally = { scored: 0, closer: 0, side: 0 };
+const tally = { scored: 0, closer: 0, side: 0, market: 0, marketScored: 0 };
+const marketName = aligned.names.find((name) => name === '^GSPC');
 const per = new Map();
 for (let back = horizon; back <= horizon * 12; back += horizon) {
     const asOf = aligned.dates.length - 1 - back;
@@ -45,7 +51,7 @@ for (let back = horizon; back <= horizon * 12; back += horizon) {
     const preferred = new Set(together.filter((link) => link.preferred).map((link) => `${link.source}|${link.target}`));
     const edges = report.edges.filter((edge) => edge.provenance !== 'correlationOnly' || preferred.has(`${edge.sourceColumn}|${edge.targetColumn}`));
     if (!edges.length) { console.log(`${to}: no links kept`); continue; }
-    const built = await host.runImporter({ addonDirectory, importer, files, options: { stage: 'build', to, edges, selfTerms: report.selfTerms } });
+    const built = await host.runImporter({ addonDirectory, importer, files, options: { stage: 'build', to, edges, selfTerms: report.selfTerms, keepIntercepts: process.env.KEEP_INTERCEPTS === '1' } });
     const drivers = [...new Set(edges.map((edge) => aligned.names.find((name) => safe(name) === edge.sourceColumn)))];
     const content = JSON.stringify(built.document);
     const configuration = built.document.runConfigurations[0];
@@ -69,6 +75,20 @@ for (let back = horizon; back <= horizon * 12; back += horizon) {
         const total = Array.from({ length: horizon }, (_, k) => actualBar(name, k)).reduce((a, b) => a + b, 0);
         const actual = price ? 100 * (Math.exp(total) - 1) : total;
         if (Math.abs(simulated) < (price ? 0.05 : 0.005)) continue;
+        let marketNote = '';
+        if (marketName && name !== marketName && price && kinds[aligned.names.indexOf(marketName)] === 'log return') {
+            const y = learned.columns[index].slice(-length);
+            const x = learned.columns[learned.names.indexOf(marketName)].slice(-length);
+            const mx = x.reduce((a, b) => a + b, 0) / x.length;
+            const my = y.reduce((a, b) => a + b, 0) / y.length;
+            const beta = x.reduce((sum, value, i) => sum + (value - mx) * (y[i] - my), 0) / (x.reduce((sum, value) => sum + (value - mx) ** 2, 0) || 1);
+            const marketTotal = Array.from({ length: horizon }, (_, k) => actualBar(marketName, k)).reduce((a, b) => a + b, 0);
+            const guess = 100 * (Math.exp(beta * marketTotal) - 1);
+            tally.marketScored += 1;
+            const modelBeats = Math.abs(actual - simulated) < Math.abs(actual - guess);
+            if (modelBeats) tally.market += 1;
+            marketNote = `, market guess ${guess.toFixed(2)} (${modelBeats ? 'model closer' : 'market closer'})`;
+        }
         tally.scored += 1;
         const closer = Math.abs(actual - simulated) < Math.abs(actual);
         if (closer) tally.closer += 1;
@@ -77,10 +97,11 @@ for (let back = horizon; back <= horizon * 12; back += horizon) {
         entry.n += 1;
         if (closer) entry.closer += 1;
         per.set(name, entry);
-        console.log(`${to} ${name}: actual ${actual.toFixed(2)}, model ${simulated.toFixed(2)}, ${closer ? 'model closer' : 'no-change closer'}`);
+        console.log(`${to} ${name}: actual ${actual.toFixed(2)}, model ${simulated.toFixed(2)}, ${closer ? 'model closer' : 'no-change closer'}${marketNote}`);
     }
     await baseline.cleanup?.();
     await child.cleanup?.();
 }
 console.log(`\nOver ${tally.scored} comparisons the model was closer than a guess of no change ${tally.closer} times (${(100 * tally.closer / Math.max(1, tally.scored)).toFixed(0)}%) and had the direction right ${tally.side} times (${(100 * tally.side / Math.max(1, tally.scored)).toFixed(0)}%).`);
+if (tally.marketScored) console.log(`Against the ${marketName} beta guess the model was closer ${tally.market} of ${tally.marketScored} times (${(100 * tally.market / tally.marketScored).toFixed(0)}%).`);
 for (const [name, entry] of per) console.log(`  ${name}: closer ${entry.closer} of ${entry.n}`);

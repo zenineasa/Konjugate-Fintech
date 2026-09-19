@@ -492,6 +492,24 @@ try {
         await markets.click('.basket >> nth=0 >> [data-basket-all]');
         assert.equal(await markets.textContent('#trayCount'), '1');
 
+        // A selection can be kept as a group of one's own, and taken away again.
+        await markets.click('.tab[data-tab="search"]');
+        await markets.fill('#searchBox', 'alpha');
+        await markets.waitForSelector('#searchResults .result');
+        await markets.click('#searchTypes [data-type="all"]');
+        await markets.click('#searchResults [data-pick="AAAF"]');
+        assert.equal(await markets.locator('#saveGroupRow').isVisible(), true, 'Two or more series can be saved as a group.');
+        await markets.fill('#groupName', 'Alpha things');
+        await markets.click('#saveGroup');
+        await markets.click('.tab[data-tab="baskets"]');
+        assert.equal(await markets.locator('.basket').count(), 10, 'The saved group joins the nine that ship.');
+        assert.match(await markets.textContent('.basket >> nth=0 >> summary'), /Alpha things/);
+        await markets.click('.basket >> nth=0 >> [data-basket-delete]');
+        assert.equal(await markets.locator('.basket').count(), 9);
+        await markets.click('.tab[data-tab="search"]');
+        await markets.click('#searchResults [data-pick="AAAF"]');
+        assert.equal(await markets.textContent('#trayCount'), '1');
+
         // Typed symbols join the selection; the range and bar size are the user's to set, and intraday limits are enforced.
         await markets.click('.tab[data-tab="symbols"]');
         await markets.fill('#symbolBox', 'BBB, NOPE');
@@ -539,6 +557,7 @@ try {
         assert.equal(await miners.locator('input').isChecked(), true, 'A steady link is kept by default.');
         const airlines = await linkRow('Brent crude → Airlines');
         assert.match(await airlines.textContent(), /moves against it/, 'Crude leads airlines, with the opposite sign.');
+        assert.ok(await markets.locator('#linkGraph svg path[marker-end]').count() >= 1, 'The kept links are drawn as a graph.');
         console.log(`Markets links: ${(await markets.locator('#linkTable tbody tr').allTextContents()).map((text) => text.replace(/\s+/g, ' ').trim()).slice(0, 4).join(' | ')}`);
 
         // Build the model and shock gold: the miners follow, the unrelated series stay put.
@@ -581,7 +600,20 @@ try {
         console.log(`Markets replay: ${replayHeadline}`);
         assert.match(replayHeadline, /With the real moves of .*Gold.* replayed for \d+ bars/);
         assert.match(await markets.textContent('#resultTable'), /held to its real path/);
+        assert.match(await markets.textContent('#resultTable'), /Market guess/, 'A market guess is offered beside no change when a market series is present.');
         assert.ok(await markets.locator('#chart svg path[stroke-dasharray]').count() >= 1, 'What really happened is drawn dashed beside the model.');
+
+        // A projection with the range that past volatility allows, compared with the bars held back.
+        await markets.click('#anotherScenario');
+        await markets.click('#scenarioList [data-scenario="project"]');
+        await markets.click('#runScenario');
+        await markets.waitForSelector('#panel-results.active #projectPick:not(.hidden)', { timeout: 120000 });
+        const projectHeadline = await markets.textContent('#headline');
+        console.log(`Markets projection: ${projectHeadline}`);
+        assert.match(projectHeadline, /series ended inside the 68% range/);
+        assert.ok(await markets.locator('#chart svg path[fill-opacity]').count() >= 2, 'The 68% and 95% ranges are shaded.');
+        await markets.selectOption('#projectSeries', 'Gold miners');
+        assert.match(await markets.textContent('#legend'), /Gold miners: the model/);
     });
     console.log('Fintech interaction checks passed.');
 } finally {

@@ -171,3 +171,10 @@ input[type="date"] { padding: 7px 10px; color: var(--text); background: var(--su
 .driver-list { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 8px; }
 
 .preview .stats { gap: 8px; flex-wrap: wrap; }
+
+.save-group { display: flex; gap: 8px; margin-top: 10px; max-width: 520px; }
+.save-group input { flex: 1; }
+.link-graph { margin-top: 14px; padding: 12px 16px; }
+.link-graph svg { width: 100%; max-height: 380px; display: block; }
+.link-graph text { fill: var(--text); font-size: 12px; }
+.basket .delete { margin-left: 8px; }

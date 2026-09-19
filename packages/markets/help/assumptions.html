@@ -25,7 +25,15 @@
 <li>Holding recent bars back lets the model learn up to an as-of date and then be tested against what happened next. The link analysis never sees the held-back bars.</li>
 <li>A plain forecast of returns is close to flat, because returns are close to unpredictable, and would only look wrong beside a noisy real path. So the replay is conditional: the real moves of the series you choose are played through the model, and the others are compared with what they really did. The chosen series are held to their real path within a fraction of a bar.</li>
 <li>Each followed series is scored against a guess of no change: was the model's number closer to what happened? Only series the model moved are scored. One or two comparisons are a data point, not proof.</li>
-<li>Checked on five years of real Yahoo Finance data for seven series (gold, gold miners, airlines, Brent, banks, the S&amp;P 500, the ten-year yield), replaying 21 bars from twelve different as-of dates: 26 comparisons, the model closer than a guess of no change 16 times, and the direction right 17 times. Suggestive, not conclusive; the months overlap in what drives them, and gold and gold miners were closer every time while oil was closer only 3 of 8.</li>
+<li>Checked on five years of real Yahoo Finance data for seven series (gold, gold miners, airlines, Brent, banks, the S&amp;P 500, the ten-year yield), replaying 21 bars from twelve different as-of dates: 24 comparisons, the model closer than a guess of no change 16 times (67%), and the direction right 16 times. Suggestive, not conclusive: the months overlap, and gold and gold miners were closer every time.</li>
+<li>Each fitted link carries a constant, the average drift of the series in the learning window. The model leaves it out, so a series does not carry on drifting the way it happened to. Keeping it made the backtest worse.</li>
+</ul>
+
+<h2>The market guess, and the projection</h2>
+<ul>
+<li>The replay can also be scored against a <b>market guess</b>: each series moves by its usual beta to a market series (the S&amp;P 500 when it is among your series), times what that market series really did. That is a harder test than no change, because much of what the links find is simply following the market.</li>
+<li>On the real daily data above the model was closer than the market guess in 16 of 22 comparisons. On hourly data over about two years it was closer in 8 of 16. Read that as: the links add something beyond a market beta on daily bars for a few pairs, and little elsewhere.</li>
+<li><b>Project forward</b> runs the model with nothing shocked. The path is close to flat, because returns are close to unpredictable; the shaded ranges (68% and 95%) come from how much each series moved in your range, and are not the model's own uncertainty. Bars you held back are drawn against them, and the window counts how many series ended inside. About two in three should end inside the 68% range.</li>
 </ul>
 
 <h2>Limits</h2>

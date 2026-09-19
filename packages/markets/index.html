@@ -41,7 +41,7 @@
                 </div>
 
                 <div class="tab-panel hidden" id="tab-baskets">
-                    <p class="lede" style="margin: 0 0 10px">Each group was chosen by hand and every symbol checked. Add a whole group, or tick the ones you want.</p>
+                    <p class="lede" style="margin: 0 0 10px">Your own groups come first, then the ones that ship with the window, each chosen by hand with every symbol checked. Add a whole group, or tick the ones you want.</p>
                     <div id="basketList"></div>
                 </div>
 
@@ -77,6 +77,10 @@
                         <input type="date" id="fetchTo"></label>
                 </div>
                 <div class="chips" id="rangePresets" role="group" aria-label="Quick ranges"></div>
+                <div class="save-group hidden" id="saveGroupRow">
+                    <input type="text" id="groupName" placeholder="Name this selection to keep it as a group" autocomplete="off" spellcheck="false">
+                    <button class="button" type="button" id="saveGroup">Save as a group</button>
+                </div>
                 <label class="inline" style="margin-top: 6px"><input type="checkbox" id="fetchLatest" checked> up to the latest bar, and again whenever I reload</label>
                 <p class="lede" id="fetchNote" style="margin-top: 6px"></p>
                 <div class="actions" style="margin-top: 10px">
@@ -124,6 +128,7 @@
                 <p class="headline" id="headline"></p>
             </header>
             <div class="grid tiles" id="tiles"></div>
+            <label class="field hidden" id="projectPick" style="max-width: 360px">Series to draw<select id="projectSeries"></select></label>
             <div class="card chart-card">
                 <h4 id="chartTitle"></h4>
                 <div id="chart"></div>
