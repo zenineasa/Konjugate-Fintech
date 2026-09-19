@@ -12,16 +12,25 @@ const valueHeadings = ['adjclose', 'adjustedclose', 'close', 'closingprice', 'pr
 
 // Accepts 2026-09-19, 2026-09-19 16:00:00, 19/09/2026, 19.09.2026 and 09/19/2026 (when a first part above 12 rules
 // out day-first there is no ambiguity; otherwise the file's own other rows decide, see readDates).
-function isoDate(text, dayFirst) {
+// A time of day after the date (16:30, 16:30:00) is kept as HH:MM, so a file of intraday bars stays one row per bar;
+// a midnight time, which daily exports often carry, is dropped.
+function timeOf(rest, keepMidnight) {
+    const time = String(rest ?? '').match(/^[T\s]+(\d{1,2}):(\d{2})/);
+    if (!time) return '';
+    const text = `${time[1].padStart(2, '0')}:${time[2]}`;
+    return text === '00:00' && !keepMidnight ? '' : ` ${text}`;
+}
+
+function isoDate(text, dayFirst, keepMidnight) {
     const value = String(text ?? '').trim();
-    let match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (match) return `${match[1]}-${match[2]}-${match[3]}`;
-    match = value.match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{4})/);
+    let match = value.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+    if (match) return `${match[1]}-${match[2]}-${match[3]}${timeOf(match[4], keepMidnight)}`;
+    match = value.match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{4})(.*)$/);
     if (match) {
         const [first, second] = [Number(match[1]), Number(match[2])];
         const [day, month] = dayFirst ? [first, second] : [second, first];
         if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-        return `${match[3]}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        return `${match[3]}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}${timeOf(match[4], keepMidnight)}`;
     }
     return null;
 }
@@ -37,7 +46,10 @@ function readDates(cells) {
         if (Number(match[2]) > 12) secondAbove = true;
     }
     const dayFirst = firstAbove || !secondAbove;
-    return cells.map((cell) => isoDate(cell, dayFirst));
+    // A file whose times are all midnight is daily; one with any other time of day is intraday, and midnight is a bar there.
+    const hasTime = (cell) => { const match = String(cell ?? '').match(/[T\s](\d{1,2}):(\d{2})/); return Boolean(match) && !(Number(match[1]) === 0 && Number(match[2]) === 0); };
+    const intraday = cells.some(hasTime);
+    return cells.map((cell) => isoDate(cell, dayFirst, intraday));
 }
 
 // Yahoo Finance's chart answer as the date,close CSV the rest of this reads. Uses the adjusted close (splits and
@@ -51,10 +63,13 @@ export function yahooChartToCsv(text, name) {
     const values = result?.indicators?.adjclose?.[0]?.adjclose ?? result?.indicators?.quote?.[0]?.close;
     if (!Array.isArray(stamps) || !Array.isArray(values)) throw new Error(`${name}: the answer holds no prices. Check the symbol.`);
     const offset = Number(result.meta?.gmtoffset) || 0;
+    // Minute and hour bars keep their time of day (in the exchange's own clock); daily and longer keep the date only.
+    const intraday = /^\d+[mh]$/.test(String(result.meta?.dataGranularity ?? ''));
     const lines = ['Date,Close'];
     stamps.forEach((stamp, index) => {
         if (values[index] === null || values[index] === undefined) return;
-        lines.push(`${new Date((stamp + offset) * 1000).toISOString().slice(0, 10)},${values[index]}`);
+        const moment = new Date((stamp + offset) * 1000).toISOString();
+        lines.push(`${intraday ? `${moment.slice(0, 10)} ${moment.slice(11, 16)}` : moment.slice(0, 10)},${values[index]}`);
     });
     return `${lines.join('\n')}\n`;
 }
@@ -115,6 +130,17 @@ export function alignSeries(seriesList) {
     return {
         names, dates, columns,
         lost: seriesList.map((series) => ({ name: series.name, lost: series.points.length - dates.length, of: series.points.length }))
+    };
+}
+
+// The part of aligned levels from one date to another, both inclusive and either optional. A date is compared with the
+// start of each bar's own date, so "2026-09-18" keeps every intraday bar on that day.
+export function cropAligned(aligned, from, to) {
+    const keep = aligned.dates.map((date) => (!from || date.slice(0, from.length) >= from) && (!to || date.slice(0, to.length) <= to));
+    return {
+        ...aligned,
+        dates: aligned.dates.filter((_, index) => keep[index]),
+        columns: aligned.columns.map((column) => column.filter((_, index) => keep[index]))
     };
 }
 

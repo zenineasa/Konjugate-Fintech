@@ -20,6 +20,14 @@
 <li>Checked against the recurrence fitted to the data, a shock's effect on a linked series came within a few percent of what the fitted link implies. The link itself is estimated, and estimates of a real effect tend to be a little smaller than the truth.</li>
 </ul>
 
+<h2>Replaying real moves, and the scorecard</h2>
+<ul>
+<li>Holding recent bars back lets the model learn up to an as-of date and then be tested against what happened next. The link analysis never sees the held-back bars.</li>
+<li>A plain forecast of returns is close to flat, because returns are close to unpredictable, and would only look wrong beside a noisy real path. So the replay is conditional: the real moves of the series you choose are played through the model, and the others are compared with what they really did. The chosen series are held to their real path within a fraction of a bar.</li>
+<li>Each followed series is scored against a guess of no change: was the model's number closer to what happened? Only series the model moved are scored. One or two comparisons are a data point, not proof.</li>
+<li>Checked on five years of real Yahoo Finance data for seven series (gold, gold miners, airlines, Brent, banks, the S&amp;P 500, the ten-year yield), replaying 21 bars from twelve different as-of dates: 26 comparisons, the model closer than a guess of no change 16 times, and the direction right 17 times. Suggestive, not conclusive; the months overlap in what drives them, and gold and gold miners were closer every time while oil was closer only 3 of 8.</li>
+</ul>
+
 <h2>Limits</h2>
 <ul>
 <li>This is not a forecast, and it has not been validated against real markets or reviewed by a practitioner.</li>

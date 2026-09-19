@@ -437,8 +437,9 @@ try {
             if (!markets) await new Promise((resolve) => setTimeout(resolve, 100));
         }
         assert.ok(markets, 'The Fintech markets window did not open.');
-        await markets.waitForSelector('#seriesSlot');
+        await markets.waitForSelector('.tab[data-tab="files"]');
         assert.equal(await markets.locator('#readData').isDisabled(), true, 'At least two series are needed before anything can be read.');
+        await markets.click('.tab[data-tab="files"]');
 
         // Two files too short to compare are refused with a reason.
         await answer(join(shortDirectory, 'One.csv'));
@@ -451,39 +452,65 @@ try {
         await markets.waitForSelector('#importResult .notice.error');
         assert.match(await markets.textContent('#importResult .notice.error'), /at least 40/);
 
-        // Fetching from the internet, with the network answered by the test: two symbols that exist, one that does not,
-        // and a symbol that would send the request to a host the window may not reach.
+        // Fetching from the internet, with the network answered by the test: two symbols that exist and one that does not.
         const chart = (seed) => {
             let value = seed;
             const stamps = Array.from({ length: 130 }, (_, index) => 1767225600 + index * 86400);
             return JSON.stringify({ chart: { result: [{ meta: { gmtoffset: 0 }, timestamp: stamps, indicators: { adjclose: [{ adjclose: stamps.map((_, index) => (value *= 1 + 0.01 * Math.sin(index * seed))) }] } }], error: null } });
         };
-        await app.evaluate((_electron, bodies) => {
+        const search = JSON.stringify({ quotes: [{ symbol: 'AAA', shortname: 'Alpha Corp', quoteType: 'EQUITY', exchDisp: 'NASDAQ' }, { symbol: 'AAAF', shortname: 'Alpha Fund', quoteType: 'ETF', exchDisp: 'NYSEArca' }, { symbol: 'AAA=F', shortname: 'Alpha Futures', quoteType: 'FUTURE', exchDisp: 'CME' }, { symbol: 'AAAO', shortname: 'Alpha option', quoteType: 'OPTION', exchDisp: 'OPRA' }] });
+        await app.evaluate((_electron, { bodies, searchBody }) => {
             globalThis.fetchedUrls = [];
             globalThis.fetch = async (url) => {
                 globalThis.fetchedUrls.push(String(url));
+                if (String(url).includes('/v1/finance/search')) return new Response(searchBody, { status: 200 });
                 const symbol = decodeURIComponent(new URL(url).pathname.split('/').pop());
                 if (bodies[symbol]) return new Response(bodies[symbol], { status: 200 });
                 return new Response('not found', { status: 404 });
             };
-        }, { AAA: chart(3.1), BBB: chart(5.7) });
+        }, { bodies: { AAA: chart(3.1), BBB: chart(5.7) }, searchBody: search });
         while (await markets.locator('#seriesSlot [data-remove]').count()) {
             const before = await markets.locator('#seriesSlot [data-remove]').count();
             await markets.click('#seriesSlot [data-remove]');
             await markets.waitForFunction((count) => document.querySelectorAll('#seriesSlot [data-remove]').length < count, before);
         }
-        await markets.click('#fetchCard summary');
-        await markets.fill('#fetchSymbols', 'AAA, BBB, NOPE');
+
+        // Search finds a name, offers the kinds it can be, and adds what is ticked to the selection.
+        await markets.click('.tab[data-tab="search"]');
+        await markets.fill('#searchBox', 'alpha');
+        await markets.waitForSelector('#searchResults .result');
+        assert.equal(await markets.locator('#searchResults .result').count(), 3, 'Options are not offered as series.');
+        await markets.click('#searchTypes [data-type="EQUITY"]');
+        assert.equal(await markets.locator('#searchResults .result').count(), 1, 'The kind filter narrows the results.');
+        await markets.click('#searchResults [data-pick="AAA"]');
+        assert.equal(await markets.textContent('#trayCount'), '1');
+
+        // A group adds every member, and can be taken away again.
+        await markets.click('.tab[data-tab="baskets"]');
+        await markets.click('.basket >> nth=0 >> [data-basket-all]');
+        assert.equal(await markets.textContent('#trayCount'), '12', 'One search pick and the eleven members of the first group.');
+        await markets.click('.basket >> nth=0 >> [data-basket-all]');
+        assert.equal(await markets.textContent('#trayCount'), '1');
+
+        // Typed symbols join the selection; the range and bar size are the user's to set, and intraday limits are enforced.
+        await markets.click('.tab[data-tab="symbols"]');
+        await markets.fill('#symbolBox', 'BBB, NOPE');
+        await markets.click('#addSymbols');
+        assert.equal(await markets.textContent('#trayCount'), '3');
+        await markets.selectOption('#fetchBars', '5m');
+        assert.ok((await markets.inputValue('#fetchFrom')) >= new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10), 'Five-minute history is limited to the last 60 days.');
+        await markets.selectOption('#fetchBars', '1d');
+        await markets.click('#rangePresets [data-preset="365"]');
+        assert.ok((await markets.inputValue('#fetchFrom')) <= new Date(Date.now() - 360 * 86400000).toISOString().slice(0, 10));
         await markets.click('#fetchNow');
         await markets.waitForSelector('#fetchStatus .notice.warning', { timeout: 30000 });
         assert.match(await markets.textContent('#fetchStatus .notice.warning'), /NOPE: query1\.finance\.yahoo\.com answered 404/);
-        await markets.waitForSelector('#importResult .notice, #importStatus .notice', { timeout: 30000 });
-        assert.equal(await markets.locator('#importResult .notice.ok').count(), 1, await markets.locator('#importResult, #importStatus').allTextContents().then((texts) => texts.join(' | ')));
-        const fetchedNames = await markets.locator('#seriesSlot .file-line .name').allTextContents();
-        assert.deepEqual(fetchedNames, ['AAA.csv (fetched)', 'BBB.csv (fetched)']);
-        assert.equal(await markets.locator('#importResult tbody tr').count(), 2);
+        await markets.waitForFunction(() => document.querySelectorAll('#previewGrid .preview').length === 2, null, { timeout: 30000 });
+        assert.equal(await markets.textContent('#trayCount'), '1', 'The failed symbol stays selected so it can be tried again.');
+        await markets.click('.tab[data-tab="files"]');
+        assert.deepEqual(await markets.locator('#seriesSlot .file-line .name').allTextContents(), ['Alpha Corp (AAA).csv (fetched)', 'BBB.csv (fetched)']);
         const requested = await app.evaluate(() => globalThis.fetchedUrls);
-        assert.ok(requested.every((url) => url.startsWith('https://query1.finance.yahoo.com/v8/finance/chart/')), 'Only the listed host is contacted.');
+        assert.ok(requested.filter((url) => !url.includes('/v1/finance/search')).every((url) => url.startsWith('https://query1.finance.yahoo.com/v8/finance/chart/') && /period1=\d+&period2=\d+&interval=1d/.test(url)), 'Only the listed host is contacted, with the chosen range.');
 
         // Keeping it up to date: one series changes at the source, and a rebuild fetches it again and records the look.
         await markets.click('#toLinks');
@@ -501,7 +528,7 @@ try {
 
         // The sample series read cleanly, and the analysis finds the links that were planted in them.
         await markets.click('#useSample');
-        await markets.waitForFunction(() => document.querySelectorAll('#importResult tbody tr').length === 7, null, { timeout: 30000 });
+        await markets.waitForFunction(() => document.querySelectorAll('#previewGrid .preview').length === 7, null, { timeout: 30000 });
         await markets.click('#toLinks');
         await markets.click('#findLinks');
         await markets.waitForSelector('#linkTable', { timeout: 120000 });
@@ -528,13 +555,33 @@ try {
         assert.equal(await markets.locator('#resultTable tbody tr').count(), 7);
         const tableRows = await markets.locator('#resultTable tbody tr').allTextContents();
         assert.match(tableRows.find((row) => row.startsWith('Banks')), /[+−]?0\.0\d%/, 'A series the shock does not reach barely moves.');
-        assert.ok(await markets.locator('#chart svg path').count() >= 5);
+        assert.ok(await markets.locator('#chart svg path').count() >= 2, 'The chart draws a line for each series the shock reaches.');
 
         await markets.click('#openCanvas');
         await window.waitForFunction(() => document.querySelector('.documentTitle').textContent === 'FintechMarkets', null, { timeout: 30000 });
         await window.waitForFunction(() => document.querySelectorAll('#branchChips > *').length === 2, null, { timeout: 30000 });
         assert.match(await window.textContent('.modelStatus'), /8 nodes/);
         console.log('Markets window: read, links, model, what-if and canvas all work.');
+
+        // Hold the last month back and replay what really happened: the model is compared with the actual outcome.
+        await markets.click('.step[data-step="data"]');
+        await markets.click('#rangeQuick [data-quick="hold1"]');
+        assert.match(await markets.textContent('#rangeCard'), /held back/);
+        await markets.click('#toLinks');
+        await markets.click('#findLinks');
+        await markets.waitForSelector('#linkTable', { timeout: 120000 });
+        await markets.click('#buildModel');
+        await markets.waitForSelector('#buildStatus .notice.ok', { timeout: 60000 });
+        await markets.click('#toWhatIf');
+        await markets.click('#scenarioList [data-scenario="replay"]');
+        assert.equal(await markets.locator('[data-driver="Gold"]').isChecked(), true, 'A series with a kept link going out of it is replayed by default.');
+        await markets.click('#runScenario');
+        await markets.waitForSelector('#panel-results.active #tiles .tile', { timeout: 120000 });
+        const replayHeadline = await markets.textContent('#headline');
+        console.log(`Markets replay: ${replayHeadline}`);
+        assert.match(replayHeadline, /With the real moves of .*Gold.* replayed for \d+ bars/);
+        assert.match(await markets.textContent('#resultTable'), /held to its real path/);
+        assert.ok(await markets.locator('#chart svg path[stroke-dasharray]').count() >= 1, 'What really happened is drawn dashed beside the model.');
     });
     console.log('Fintech interaction checks passed.');
 } finally {

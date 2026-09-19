@@ -117,6 +117,29 @@
                         "duration": 1
                     }
                 ]
+            },
+            {
+                "scenarioId": "replay",
+                "name": "Replay real moves",
+                "description": "Play the real moves of the series you choose after the as-of date through the model, and compare what it expects of the others with what actually happened.",
+                "forkAt": 0,
+                "runTime": 21,
+                "effects": [
+                    "The chosen series follow their real moves, bar by bar, from the as-of date.",
+                    "Every other series responds only through the links you kept, and is compared with what it really did and with a guess of no change."
+                ],
+                "interventions": [
+                    {
+                        "parameter": "trackGain",
+                        "target": "supplied",
+                        "value": 15
+                    },
+                    {
+                        "parameter": "drive",
+                        "target": "supplied",
+                        "samples": true
+                    }
+                ]
             }
         ],
         "pages": [

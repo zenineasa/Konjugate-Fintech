@@ -35,7 +35,7 @@ const addonDirectory = join(fintechRoot, 'packages', 'markets');
 
 const read = await host.runImporter({ addonDirectory, importer, files, options: { stage: 'read' } });
 console.log('read:', JSON.stringify(read.report.summary), read.report.warnings.length, 'warnings');
-const changes = { names: read.data.names, kinds: read.data.kinds, dates: read.data.dates, columns: read.data.columns };
+const changes = toChanges({ names: read.data.names, dates: read.data.dates, columns: read.data.columns });
 const infer = async (csv, config) => { const result = await adapter.inferWithEngine(csv, config, engineOptions); return result.report; };
 const analysis = await analyzeWindows(changes, { length: 150, count: 3 }, infer);
 console.log('links:', analysis.links.map((link) => `${link.source}->${link.target} ${link.label}`).join('; '));

@@ -1,18 +1,22 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><title>Getting started</title><link rel="stylesheet" href="_style.css"></head><body>
+
 <h1>Getting started</h1>
-<p class="lede">Five minutes from a set of price files to a what-if.</p>
+<p class="lede">Ten minutes from a question to a comparison with what really happened.</p>
 
-<h2>1. Load your series</h2>
-<p>On <b>Your series</b>, choose one file per series (a date column and a price or rate column), or press <b>Use the sample series</b> to try seven made-up ones. Konjugate lines them up on the dates they share, turns them into changes, and lists anything it repaired or left out. Nothing leaves your computer.</p>
+<h2>1. Choose your series</h2>
+<p>On <b>Your series</b>, <b>Search</b> finds a stock, fund, index, future, currency or cryptocurrency by name and tells you which kind each match is. <b>Groups</b> adds a whole set at once (sector funds, commodities, currencies, Treasury yields and more) or lets you tick the members you want. <b>Type symbols</b> takes Yahoo Finance, FRED or Stooq symbols directly, and <b>My files</b> takes your own files. Everything you pick appears in <b>Your selection</b>, where you choose the bar size (daily, hourly or every five minutes) and how far back to go, by preset or by dates. Or press <b>Use the sample series</b> to try seven made-up ones. Nothing is fetched until you press <b>Get data</b>, and nothing leaves your computer except the symbols you asked for.</p>
 
-<h2>2. Look for links</h2>
-<p>Konjugate looks for series whose past moves help predict another's, in several separate stretches of history, and counts how often each link shows up with the same direction and delay. <b>Steady</b> links appeared in most stretches; <b>Comes and goes</b> and <b>Unsteady</b> links are weaker evidence. There are two lists: <b>leads and lags</b> (one series moves a bar before another) and <b>moves together in the same bar</b>, which is usually far steadier in real markets. Tick the links you want in the model, then build it.</p>
+<h2>2. Check the data</h2>
+<p>Before anything is analysed you see each series on its own scale, with the range that will be used shaded. Drag the two handles to choose the range, or use a quick choice. Switch off any series you do not want. <b>Hold back</b> the last month or three months to keep recent bars for a comparison later: the model then learns only up to the last bar in the range, its <b>as-of date</b>.</p>
 
-<h2>3. Shock a series</h2>
-<p>Each scenario runs the model twice from the latest bar: once as it is, and once with a shock. Choose the series to shock; the results show how far the shock travels through the links you kept, against the run with no shock.</p>
+<h2>3. Look for links</h2>
+<p>Konjugate looks for series whose moves help predict another's, in several separate stretches of history, and counts how often each link shows up with the same direction. There are two lists: <b>leads and lags</b> (one series moves a bar before another) and <b>moves together in the same bar</b>, which is usually far steadier in real markets. Tick the links you trust and build the model.</p>
 
-<h2>4. Keep it up to date</h2>
-<p>If your files are updated by another program, <b>Keep it up to date</b> reads them again, repeats the analysis and rebuilds the model, on demand or every few minutes while the window is open. The list of earlier looks shows which links appeared or disappeared.</p>
+<h2>4. Look ahead</h2>
+<p><b>Shock a series</b> to see what follows through the links you kept, against a run with no shock. <b>Replay real moves</b> plays what really happened to chosen series after the as-of date through the model, and shows what it expects of the others beside what they actually did, with a scorecard against a guess of no change. Choose how far ahead to run.</p>
+
+<h2>5. Keep it up to date</h2>
+<p>If your series came from files or from the internet, <b>Keep it up to date</b> reads or fetches them again, repeats the analysis and rebuilds, on demand or every few minutes while the window is open. The list of earlier looks shows which links appeared or disappeared.</p>
 
 <div class="note">Links found in past data are not a forecast. The model is illustrative and has not been validated by a practitioner. See <b>Assumptions and limits</b>.</div>
 </body></html>

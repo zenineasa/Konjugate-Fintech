@@ -93,4 +93,22 @@ Checked against Konjugate's real inference engine with `scripts/marketStability.
 - **What this changes.** A tool built only on lead-lag would show nothing on real daily data. The co-movement table is what makes the what-if useful, but it cannot say which series drives which, so the window ticks the direction into the more volatile series and lets the user change it. It should be presented as a beta-style what-if, not as cause and effect.
 - **Sources.** Yahoo's chart endpoint answered without a key; its terms restrict commercial use. Stooq now puts a browser check in front of downloads and may refuse a program; the window reports that plainly. FRED did not answer from the test machine on the day it was tried.
 
-**Not done.** Intraday bars, a check of the what-if against out-of-sample moves, longer lead-lag delays in core, and a suite package holding the Start and Markets windows together.
+**Intraday.** Hourly and five-minute bars are read (a time of day after the date is kept, a midnight bar is kept only in an intraday file) and can be fetched from Yahoo, which keeps about two years of hourly and sixty days of five-minute history. Windows are shown in calendar terms ("120 bars, about 6 months"). The link analysis on intraday data has been checked only for reading and alignment, not for what it finds.
+
+**Not done.** A check of the what-if against out-of-sample moves, longer lead-lag delays in core, and a suite package holding the Start and Markets windows together.
+
+## Second version: choosing series, ranges, previews and backtests
+
+Prompted by three points from use: users need more flexibility over the data range, finding series on Yahoo needs to be easier than knowing its symbols, and a preview of the data should come before anything is analysed, with a way to compare what the model expects against what actually happened.
+
+**Finding series.** Yahoo's search answers without a key and says what each match is (stock, fund, index, future, currency, cryptocurrency), so the window offers name search with kind filters. Yahoo has no list of a category's members, so groups are curated and shipped (`lib/baskets.mjs`): major indices, the eleven US sector funds, commodity futures, Treasury yields, currencies, crypto, asset-class funds, country funds and industry funds, 78 symbols each checked to answer. A tray holds the selection, and typed symbols from Yahoo, FRED or Stooq and the user's own files sit beside it.
+
+**Range.** Fetching takes a start date and an end date (or "up to the latest bar", which keeps reload-and-rebuild bringing newer bars) with presets, and enforces Yahoo's intraday limits (about 729 days of hourly bars and 59 days of five-minute bars). After reading, a range control with two handles crops what is analysed, and series can be switched off, which re-lines-up the rest.
+
+**Preview.** After reading, every series is drawn on its own scale with the chosen range shaded, and the window says when one series is shortening the shared calendar.
+
+**As-of date and backtest.** The end of the chosen range is the as-of date: links are learned only from data up to it. The bars held back after it are what really happened. A plain projection of returns is close to flat, so the comparison is conditional: real moves of chosen series are replayed through the model (each series has a tracking gain and a driven return alongside its shock, so its return follows a supplied path), and the others are compared with what they did and with a guess of no change. The path is supplied through a generic core feature: a scenario intervention with a `supplied` target, followed as a piecewise schedule.
+
+**What the backtest showed (real data).** Seven series, five years of daily bars, 21 bars replayed from twelve as-of dates: 26 comparisons, the model closer than a guess of no change 16 times (62%) and right on direction 17 times (65%). Gold and gold miners were closer every time (7 of 7); oil only 3 of 8; the index 1 of 3. Twenty-six overlapping comparisons are suggestive, not conclusive, and the test rewards real same-bar links, since the replayed series' real moves carry that information. `node scripts/marketBacktest.mjs` reproduces it.
+
+**Still open.** Saving a user's own groups. Comparing the model against a stronger benchmark than no change (a market-beta model). Intraday backtests. A projection with a range around it.

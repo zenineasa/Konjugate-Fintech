@@ -125,3 +125,20 @@ test("Yahoo Finance's chart answer reads as a price series, using adjusted close
 test('a web page in place of data is reported as that, not as a parsing failure', () => {
     assert.throws(() => parseSeriesFile('<!DOCTYPE html><html><body>Please enable JavaScript</body></html>', 'SPY'), /returned a web page/);
 });
+
+test('intraday bars keep their time of day, so a day of them is many rows, not one', () => {
+    const csv = 'Date,Close\n2026-09-18 09:30:00,10\n2026-09-18 09:35:00,11\n2026-09-18 09:40:00,12\n2026-09-19 00:00:00,13\n19/09/2026 09:30,14\n';
+    const series = parseSeriesFile(csv, 'X');
+    assert.deepEqual(series.points.map((point) => point.date), ['2026-09-18 09:30', '2026-09-18 09:35', '2026-09-18 09:40', '2026-09-19 00:00', '2026-09-19 09:30']);
+    const answer = { chart: { result: [{ meta: { gmtoffset: 3600, dataGranularity: '5m' }, timestamp: [1789723800, 1789724100, 1789724400], indicators: { quote: [{ close: [1, 2, 3] }] } }], error: null } };
+    const intraday = parseSeriesFile(JSON.stringify(answer), 'Y');
+    assert.equal(intraday.points.length, 3);
+    assert.match(intraday.points[0].date, /^2026-09-\d\d \d\d:\d\d$/);
+});
+
+test('a midnight bar is kept in an intraday file and dropped from a daily one', () => {
+    const intraday = parseSeriesFile('Date,Close\n2026-09-18 00:00,1\n2026-09-18 01:00,2\n2026-09-18 02:00,3\n', 'H');
+    assert.equal(intraday.points[0].date, '2026-09-18 00:00');
+    const daily = parseSeriesFile('Date,Close\n2026-09-17 00:00:00,1\n2026-09-18 00:00:00,2\n', 'D');
+    assert.deepEqual(daily.points.map((point) => point.date), ['2026-09-17', '2026-09-18']);
+});

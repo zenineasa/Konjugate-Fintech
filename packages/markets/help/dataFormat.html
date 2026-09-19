@@ -6,6 +6,7 @@
 <ul>
 <li>A <b>date</b> column, headed Date, Observation date, Time or similar. Dates may be 2026-09-19, 19/09/2026, 19.09.2026 or 09/19/2026. Where a file uses slashes, day-first is assumed unless a date such as 09/19/2026 shows otherwise.</li>
 <li>A <b>value</b> column, headed Close, Adj Close, Price, Value, Last or similar. If none matches, the first column that is not the date is used.</li>
+<li>Intraday files work too: a time after the date (16:30 or 16:30:00) is kept, so every bar is its own row. A midnight time, which daily exports often carry, is ignored. Every series in one analysis needs the same bar size.</li>
 <li>Rows in any order, newest first or oldest first. If a date appears twice, the last row is kept.</li>
 <li>The series is named after the file: <i>Brent crude.csv</i> becomes Brent crude. Two files may not have the same name.</li>
 </ul>
@@ -20,6 +21,14 @@
 <li>Prices, which are always positive, become log returns. Rates and spreads, which can be zero or negative, become differences.</li>
 </ul>
 
+<h2>Fetching, and how far back</h2>
+<ul>
+<li>Yahoo Finance serves daily bars back as far as a series exists (often decades), hourly bars for about the last two years, and five-minute bars for about the last sixty days. FRED and Stooq are daily. The window enforces these limits and says so.</li>
+<li>"Up to the latest bar" fetches an open-ended range, so reloading later brings newer bars. Choose an end date to stop at a fixed day.</li>
+<li>Series with different calendars are lined up on the dates they share: cryptocurrencies trade every day and stocks do not, so mixing them drops the weekends. The window shows when one series is shortening the others, and lets you switch it off.</li>
+<li>Stocks and funds use adjusted closes (splits and dividends taken out); indices, currencies and rates have no adjustment.</li>
+</ul>
+
 <h2>How much data</h2>
-<p>At least two series and 40 shared dates are needed, and at least 120 bars to compare separate stretches of history. Up to 40 series can be used. Daily bars are the usual choice; any regular bar size works, since a bar is one unit of time.</p>
+<p>At least two series and 40 shared dates are needed, and at least 120 bars to compare separate stretches of history. Up to 40 series can be used. Daily bars are the usual choice; hourly and five-minute bars work as well, since a bar is one unit of time. Gaps overnight and at weekends are simply not bars.</p>
 </body></html>

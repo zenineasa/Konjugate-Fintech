@@ -18,6 +18,24 @@ For the person running the conversation. The goal is not to sell: it is to learn
 5. **Go deeper (1 min).** Open in the canvas to show the baseline and the shock as two branches of the same run, then export and show the run manifest (versions, file hashes, changes applied).
 6. **Stop and ask (1 min onward).** Move to the questions; do not keep demoing.
 
+## Optional second walkthrough: markets (five minutes)
+
+Use this with a guest who watches markets more than balance sheets, or after the first walkthrough if there is time. It needs a network connection only if you fetch live data; the sample series work offline.
+
+1. **Frame it (30 seconds).** "Give it price series, and it looks for which ones move together or lead each other, checks whether that holds up across separate stretches of history, and lets you shock one to see what follows."
+2. **Series (1 minute).** Press Use the sample series (made up, with three links planted on purpose). If the guest is willing, fetch three or four tickers they care about instead.
+3. **Links (2 minutes).** Point at the two tables. Say plainly what to expect on real daily data: almost no lead-lag links, steady same-bar co-movement. Ask the guest which they would have guessed.
+4. **What if (1 minute).** Shock one series and read the headline. Ask what number they expected.
+5. **Stop and ask.**
+
+Questions for this segment:
+- Which series would you put in? Would you want intraday bars, and from where?
+- The window says "nothing reliable" for lead-lag on daily data. Is that useful to you, or would you rather it always showed something?
+- Same-bar co-movement cannot say which series drives which. Is a beta-style what-if enough, or would you need something more causal?
+- What would make you trust a link: how often it appears across stretches, a comparison with your own model, a longer history?
+- Which market data source would your firm allow, and would fetching from the internet be permitted at all?
+- Would you use it live, refreshed every few minutes, or only on demand?
+
 ## Questions
 
 Ask them open, one at a time, and write down their exact words.
