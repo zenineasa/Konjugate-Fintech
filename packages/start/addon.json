@@ -104,8 +104,8 @@
             },
             {
                 "scenarioId": "runWithCentralBankSupport",
-                "name": "Depositor run with central-bank support",
-                "description": "The same run, but the central bank lends to the institution under stress from day 8. Compare it with the unsupported run to see what the support is worth.",
+                "name": "Run, price shock and central-bank support",
+                "description": "The same run and price shock as the previous scenario, with the central bank lending to the stressed institution while its cash is below target. Compare the two to see what support is worth.",
                 "forkAt": 5,
                 "runTime": 60,
                 "choose": {
@@ -113,7 +113,8 @@
                 },
                 "effects": [
                     "For 8 days from day 5, depositors withdraw 1.5% of {entity}'s deposits every day.",
-                    "From day 8, the central bank lends {entity} half of its maximum daily facility (5% of its deposits a day)."
+                    "The base haircut on forced sales rises to 25% for every institution.",
+                    "From day 8 the central bank lends to {entity} while its cash is below its target: up to half the facility maximum a day, tapering to nothing as cash recovers."
                 ],
                 "interventions": [
                     {
@@ -121,6 +122,11 @@
                         "target": "chosen",
                         "value": 0.015,
                         "duration": 8
+                    },
+                    {
+                        "parameter": "baseHaircut",
+                        "target": "global",
+                        "value": 0.25
                     },
                     {
                         "parameter": "emergencyLending",

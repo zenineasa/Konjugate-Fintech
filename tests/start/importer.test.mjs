@@ -175,3 +175,21 @@ test('a non-UTF-8 file is flagged so accented names can be checked', async () =>
     assert.equal(result.ok, true);
     assert.ok(result.report.warnings.some((warning) => /windows-1252/.test(warning.message)));
 });
+
+test('an institution with no deposits or no cash is refused with a message that says why, not left to fail in the engine', async () => {
+    const zeroDeposits = await run(`${header}Alpha,10,80,0,0,0,90\nBeta,10,80,0,90,0,0\n`);
+    assert.equal(zeroDeposits.ok, false);
+    assert.match(zeroDeposits.report.errors[0].message, /Alpha: deposits_and_other_liabilities is zero. Depositors cannot run/);
+    assert.equal(zeroDeposits.report.errors[0].line, 2);
+    const zeroCash = await run(`${header}Alpha,0,80,0,80,0,0\nBeta,10,80,0,90,0,0\n`);
+    assert.equal(zeroCash.ok, false);
+    assert.match(zeroCash.report.errors[0].message, /Alpha: cash_and_reserves is zero/);
+});
+
+test('a run cannot pay out more than a bank holds, and support tapers instead of running on', async () => {
+    const result = await run(await sample('institutions.csv'), await sample('exposures.csv'));
+    const bank = result.document.edges.filter((edge) => edge.name.startsWith('Withdrawals'));
+    assert.ok(bank.every((edge) => /\\min/.test(edge.equation) && /paymentCapacity/.test(edge.equation)), 'Each withdrawal edge is limited by payment capacity times current reserves.');
+    const lending = result.document.edges.filter((edge) => edge.name.startsWith('Emergency lending'));
+    assert.ok(lending.length > 0 && lending.every((edge) => /reserveTarget/.test(edge.equation)), 'Emergency lending depends on the shortfall against the reserve target.');
+});

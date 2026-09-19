@@ -6,7 +6,7 @@
     "domains": [
         "finance"
     ],
-    "description": "Depositors withdraw cash from a bank, and withdrawals accelerate as its reserves fall below target (the panic feedback that makes a run self-reinforcing). Two matched edges move reserves and deposits together, so the balance sheet stays balanced. Select the bank and the depositor wallets, then click this bundle.",
+    "description": "Depositors withdraw cash from a bank, and withdrawals accelerate as its reserves fall below target (the panic feedback that makes a run self-reinforcing). A bank cannot pay out more than it holds: payments are limited to a multiple of its current reserves per day (the payment capacity), so reserves never go below zero and a bank that runs out of cash stops paying rather than borrowing without limit. Two matched edges move reserves and deposits together, so the balance sheet stays balanced. Select the bank and the depositor wallets, then click this bundle.",
     "color": "#c48a3f",
     "endpoints": [
         {
@@ -45,6 +45,15 @@
             "unit": "M",
             "mode": "constant",
             "scope": "project"
+        },
+        {
+            "key": "paymentCapacity",
+            "name": "Payment capacity",
+            "symbol": "paymentCapacity",
+            "value": 5,
+            "unit": "1/day",
+            "mode": "constant",
+            "scope": "project"
         }
     ],
     "edges": [
@@ -64,7 +73,7 @@
                 "role": "target",
                 "state": "cash"
             },
-            "latex": "\\mathrm{withdrawalRate} \\cdot \\mathrm{sourceDeposits} \\cdot \\left(1 + \\mathrm{panicSensitivity} \\cdot \\max\\left(0, 1 - \\frac{\\mathrm{sourceReserves}}{\\mathrm{reserveTarget}}\\right)\\right)",
+            "latex": "\\min\\left(\\mathrm{withdrawalRate} \\cdot \\mathrm{sourceDeposits} \\cdot \\left(1 + \\mathrm{panicSensitivity} \\cdot \\max\\left(0, 1 - \\frac{\\mathrm{sourceReserves}}{\\mathrm{reserveTarget}}\\right)\\right), \\mathrm{paymentCapacity} \\cdot \\max\\left(0, \\mathrm{sourceReserves}\\right)\\right)",
             "parameters": [
                 {
                     "name": "Withdrawal rate",
@@ -80,6 +89,11 @@
                     "name": "Reserve target",
                     "symbol": "reserveTarget",
                     "shared": "reserveTarget"
+                },
+                {
+                    "name": "Payment capacity",
+                    "symbol": "paymentCapacity",
+                    "shared": "paymentCapacity"
                 }
             ]
         },
@@ -98,7 +112,7 @@
                 "role": "target",
                 "state": "deposits"
             },
-            "latex": "-\\mathrm{withdrawalRate} \\cdot \\mathrm{targetDeposits} \\cdot \\left(1 + \\mathrm{panicSensitivity} \\cdot \\max\\left(0, 1 - \\frac{\\mathrm{targetReserves}}{\\mathrm{reserveTarget}}\\right)\\right)",
+            "latex": "-\\min\\left(\\mathrm{withdrawalRate} \\cdot \\mathrm{targetDeposits} \\cdot \\left(1 + \\mathrm{panicSensitivity} \\cdot \\max\\left(0, 1 - \\frac{\\mathrm{targetReserves}}{\\mathrm{reserveTarget}}\\right)\\right), \\mathrm{paymentCapacity} \\cdot \\max\\left(0, \\mathrm{targetReserves}\\right)\\right)",
             "parameters": [
                 {
                     "name": "Withdrawal rate",
@@ -114,6 +128,11 @@
                     "name": "Reserve target",
                     "symbol": "reserveTarget",
                     "shared": "reserveTarget"
+                },
+                {
+                    "name": "Payment capacity",
+                    "symbol": "paymentCapacity",
+                    "shared": "paymentCapacity"
                 }
             ]
         }

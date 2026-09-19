@@ -13,7 +13,7 @@ For the person running the conversation. The goal is not to sell: it is to learn
 
 1. **Frame it (1 min).** "This is a stress-testing sketch: you give it balance sheets, pick a shock, and it shows who fails and when, against a baseline with no shock." Say what it is not: not a regulatory model, not a forecast.
 2. **Bring data in (2 min).** Choose the two demo files. Point out the summary ("8 institutions, 38 exposures") and the table. Then choose the problems file and show the error naming the file, line and row. Ask: is this how your data looks, and would you expect a different error?
-3. **Pick a scenario (2 min).** Show the four: one institution's depositor run, a run with a fire-sale price shock, a run with central-bank support, a market-wide run. Change the institution or severity.
+3. **Pick a scenario (2 min).** Show the four: one institution's depositor run, the same run with a fire-sale price shock, that run with central-bank support (compare the last two to see what support is worth), and a market-wide run. Change the institution or severity.
 4. **Read the result (3 min).** Read the headline aloud, then the chart of equity against the baseline, then the table. Ask the guest to say, in their words, what they think the number means before you explain it.
 5. **Go deeper (1 min).** Open in the canvas to show the baseline and the shock as two branches of the same run, then export and show the run manifest (versions, file hashes, changes applied).
 6. **Stop and ask (1 min onward).** Move to the questions; do not keep demoing.
@@ -52,7 +52,7 @@ Ask them open, one at a time, and write down their exact words.
 - Would you rather choose shocks or describe an outcome ("what breaks us at 30% haircut")?
 
 **Trust**
-- What would make you trust a number like "Alder fails on day 38"? Calibration to your data, a comparison against a model you already use, or something else?
+- What would make you trust a number like "Alder fails around day 30" (in the price-shock scenario, where it fails by a hair)? Calibration to your data, a comparison against a model you already use, or something else?
 - What would you need to see in the assumptions page before you would show a result to a colleague?
 - Is a run manifest with hashes useful to you, or is it noise?
 

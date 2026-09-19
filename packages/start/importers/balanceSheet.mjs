@@ -152,6 +152,9 @@ export default async function importData({ files, helpers }) {
                 else if (number.value < 0) { record.invalid = true; fail(institutionsName, line, canonicalNames[key], `${name}: ${canonicalNames[key]} is negative (${format(number.value)}); balances must be zero or more.`); }
                 else record[key] = number.value;
             }
+            // The model measures stress against an institution's cash and runs on its deposits, so both must be positive.
+            if (!record.invalid && record.cash !== undefined && !(record.cash > 0)) { record.invalid = true; fail(institutionsName, line, canonicalNames.cash, `${name}: ${canonicalNames.cash} is zero. An institution with no cash or reserves is already unable to pay, and stress is measured against what it holds.`); }
+            if (!record.invalid && record.deposits !== undefined && !(record.deposits > 0)) { record.invalid = true; fail(institutionsName, line, canonicalNames.deposits, `${name}: ${canonicalNames.deposits} is zero. Depositors cannot run on an institution that has none; leave it out, or give it a positive figure.`); }
             if (located.equity === undefined) record.blankEquity = true;
             institutions.push(record);
             byName.set(name.toLowerCase(), record);
@@ -267,6 +270,7 @@ export default async function importData({ files, helpers }) {
     const preview = institutions.map((record) => ({
         name: record.name, assets: record.assets ?? null, equity: record.equity ?? null,
         equityRatio: record.assets ? record.equity / record.assets : null,
+        cash: record.cash, deposits: record.deposits,
         interbankAssets: record.interbankAssets ?? 0, interbankLiabilities: record.interbankLiabilities ?? 0
     }));
     // Problems in the order the user meets them in their spreadsheet.
@@ -323,6 +327,7 @@ export default async function importData({ files, helpers }) {
         parameterIndex.push({ key: 'withdrawalRate', scope: 'institution', entity: record.name, sharedParameterId: withdrawal.id, name: withdrawal.name, symbol: withdrawal.symbol, value: 0, live: true, minimum: 0, maximum: assumptions.withdrawalRateMaximum });
         const runShared = builder.applyBundle(bundles.depositRun, { bank, wallets }, { bind: { reserveTarget, withdrawalRate: withdrawal }, label: record.name });
         noteGlobal('panicSensitivity', runShared.get('panicSensitivity'), 'Panic sensitivity');
+        noteGlobal('paymentCapacity', runShared.get('paymentCapacity'), 'Payment capacity');
         const saleShared = builder.applyBundle(bundles.fireSale, { bank, market }, { bind: { reserveTarget }, label: record.name });
         for (const key of ['fireSaleRate', 'baseHaircut', 'priceImpact']) noteGlobal(key, saleShared.get(key), key);
         const lendingMaximum = Number((assumptions.emergencyLendingShareOfDepositsPerDay * record.deposits).toFixed(2));
@@ -331,7 +336,7 @@ export default async function importData({ files, helpers }) {
             live: { minimum: 0, maximum: lendingMaximum, step: Number((lendingMaximum / 100).toPrecision(2)) }
         });
         parameterIndex.push({ key: 'emergencyLending', scope: 'institution', entity: record.name, sharedParameterId: emergency.id, name: emergency.name, symbol: emergency.symbol, value: 0, live: true, minimum: 0, maximum: lendingMaximum });
-        builder.applyBundle(bundles.emergencyLending, { centralBank, bank }, { bind: { lending: emergency }, label: record.name });
+        builder.applyBundle(bundles.emergencyLending, { centralBank, bank }, { bind: { lending: emergency, reserveTarget }, label: record.name });
     });
 
     // The market depth scales with the loan book: 1.2 / total loans reproduces the reference model's calibration.
@@ -377,6 +382,8 @@ export default async function importData({ files, helpers }) {
                 'Reserve target': `${assumptions.reserveTargetShareOfDeposits * 100}% of each institution's deposits, or its current reserves if lower`,
                 'Central bank reserves': `${assumptions.centralBankShareOfDeposits * 100}% of total deposits`,
                 'Asset market depth': `${assumptions.marketDepthShareOfLoans * 100}% of total loans`,
+                'Payment capacity': 'an institution can pay out at most five times its current cash a day; it cannot pay more than it holds',
+                'Central-bank support': 'lends up to the facility maximum a day while the institution is below its cash target, tapering to nothing as cash recovers; loans are never repaid',
                 'Interbank default': exposuresEstimated ? 'shares from estimated exposures' : 'shares from the exposures file'
             }
         }

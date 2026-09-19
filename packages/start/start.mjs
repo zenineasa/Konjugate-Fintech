@@ -4,7 +4,9 @@ const api = window.konjugateLauncher;
 const $ = (selector) => document.querySelector(selector);
 const number = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 const percent = (value) => `${Math.round(value)}%`;
-const day = (time) => (Number.isInteger(time) ? String(time) : time.toFixed(1));
+// Failure days are read off a simulation that steps in tenths of a day, and shift by a day or two if the step is made finer, so they are
+// given to the nearest day and called approximate.
+const day = (time) => String(Math.round(time));
 const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 
 // Every host call answers { ok: true, ... } or { ok: false, message }; turn the second into an exception.
@@ -222,7 +224,7 @@ $('#runScenario').addEventListener('click', async () => {
     $('#runScenario').disabled = true;
     $('#runStatus').innerHTML = '<div class="running"><div class="spinner"></div><span>Starting…</span></div>';
     try {
-        const data = await call(api.runScenario(scenario.scenarioId, { entity: scenario.choose ? state.entity : null, signals: ['equity'] }));
+        const data = await call(api.runScenario(scenario.scenarioId, { entity: scenario.choose ? state.entity : null, signals: ['equity', 'reserves'] }));
         state.run = { scenario, data, summary: summarize(data) };
         $('#runStatus').replaceChildren();
         renderResults();
@@ -246,8 +248,10 @@ function summarize(data) {
         const stressed = scenario.series[institution.name]?.equity ?? [];
         const start = stressed[0]?.[1] ?? institution.equity;
         const firstBelowZero = (series) => series.find(([, value]) => value < 0)?.[0] ?? null;
+        const cash = scenario.series[institution.name]?.reserves ?? [];
+        const lowestCash = cash.length ? Math.min(...cash.map(([, value]) => value)) : institution.cash;
         return {
-            name: institution.name, assets: institution.assets, start,
+            name: institution.name, assets: institution.assets, start, lowestCash, lowestCashShare: institution.deposits ? lowestCash / institution.deposits : null,
             baselineEnd: base.at(-1)?.[1] ?? start, scenarioEnd: stressed.at(-1)?.[1] ?? start,
             baselineFailure: firstBelowZero(base), scenarioFailure: firstBelowZero(stressed),
             base, stressed
@@ -269,18 +273,25 @@ function renderResults() {
     const stress = scenario.choose ? ` on ${data.entity}` : '';
     $('#title-results').textContent = `${scenario.name}${stress}`;
     $('#headline').textContent = summary.insolvent.length
-        ? `${summary.insolvent.length} of ${total} institutions become insolvent${summary.baselineInsolvent.length ? ` (${summary.baselineInsolvent.length} in the baseline)` : ' (none in the baseline)'}. The first is ${summary.firstFailure.name}, on day ${day(summary.firstFailure.scenarioFailure)}. Total equity falls by ${number.format(summary.totalLoss)} million, against ${number.format(summary.baselineLoss)} million with no shock.`
+        ? `${summary.insolvent.length} of ${total} institutions become insolvent${summary.baselineInsolvent.length ? ` (${summary.baselineInsolvent.length} in the baseline)` : ' (none in the baseline)'}. The first is ${summary.firstFailure.name}, around day ${day(summary.firstFailure.scenarioFailure)}. Total equity falls by ${number.format(summary.totalLoss)} million, against ${number.format(summary.baselineLoss)} million with no shock.`
         : `No institution becomes insolvent. Total equity falls by ${number.format(summary.totalLoss)} million, against ${number.format(summary.baselineLoss)} million with no shock; the hardest hit is ${summary.worst.name}, which loses ${number.format(summary.lossOf(summary.worst))} million.`;
     $('#tiles').innerHTML = `
         <div class="tile ${summary.insolvent.length ? 'bad' : 'good'}"><div class="label">Insolvent institutions</div><div class="value">${summary.insolvent.length} of ${total}</div><div class="sub">baseline: ${summary.baselineInsolvent.length}</div></div>
-        <div class="tile ${summary.firstFailure ? 'bad' : ''}"><div class="label">First failure</div><div class="value">${summary.firstFailure ? `Day ${day(summary.firstFailure.scenarioFailure)}` : 'None'}</div><div class="sub">${summary.firstFailure ? escapeHtml(summary.firstFailure.name) : 'in this run'}</div></div>
+        <div class="tile ${summary.firstFailure ? 'bad' : ''}"><div class="label">First failure</div><div class="value">${summary.firstFailure ? `~ Day ${day(summary.firstFailure.scenarioFailure)}` : 'None'}</div><div class="sub">${summary.firstFailure ? escapeHtml(summary.firstFailure.name) : 'in this run'}</div></div>
         <div class="tile"><div class="label">Equity lost</div><div class="value">${number.format(summary.totalLoss)}</div><div class="sub">millions · baseline ${number.format(summary.baselineLoss)}</div></div>
         <div class="tile"><div class="label">Hardest hit</div><div class="value" style="font-size: 18px">${escapeHtml(summary.worst.name)}</div><div class="sub">loses ${number.format(summary.lossOf(summary.worst))} million</div></div>`;
+    const estimated = state.imported.report.summary.exposuresEstimated;
+    $('#assumptionsBox').innerHTML = `${estimated ? '<div class="notice warning"><div><strong>The exposures were estimated, not given.</strong> Who lent to whom decides how a run spreads, and an estimated network can spread it very differently from the real one, so read this as one possible network, not the answer. Supply an exposures file for anything that matters.</div></div>' : ''}
+        <details class="detail"><summary>What drives this result</summary>
+        <p class="lede" style="margin-top: 6px">None of these is calibrated to your institutions. The first block is what this scenario changes; the second is what the model assumes everywhere.</p>
+        <ul>${scenario.effects.map((line) => `<li>${escapeHtml(line.replaceAll('{entity}', data.entity ?? ''))}</li>`).join('')}</ul>
+        <ul>${Object.entries(state.imported.report.assumptions).map(([key, value]) => `<li><b>${escapeHtml(key)}:</b> ${escapeHtml(value)}</li>`).join('')}</ul>
+        <p class="lede">Failure days are approximate, to about a day or two: they shift a little if the simulation steps are made finer. The order in which institutions fail is what to rely on. <button class="button link" type="button" data-page="assumptions">Read more</button></p></details>`;
     renderChart(summary, data);
     const sorted = [...summary.rows].sort((left, right) => summary.lossOf(right) - summary.lossOf(left));
-    $('#resultTable').innerHTML = `<thead><tr><th>Institution</th><th>Starting equity</th><th>Baseline, end</th><th>Scenario, end</th><th>Change</th><th>Status</th></tr></thead><tbody>${sorted.map((row) => {
+    $('#resultTable').innerHTML = `<thead><tr><th>Institution</th><th>Starting equity</th><th>Baseline, end</th><th>Scenario, end</th><th>Change</th><th>Lowest cash</th><th>Status</th></tr></thead><tbody>${sorted.map((row) => {
         const change = row.scenarioEnd - row.start;
-        return `<tr><td>${escapeHtml(row.name)}</td><td>${number.format(row.start)}</td><td>${number.format(row.baselineEnd)}</td><td class="${row.scenarioEnd < 0 ? 'negative' : ''}">${number.format(row.scenarioEnd)}</td><td class="${change < -0.5 ? 'negative' : ''}">${change < -0.5 ? '−' : change > 0.5 ? '+' : ''}${number.format(Math.abs(change))}</td><td>${row.scenarioFailure === null ? '<span class="status ok">Solvent</span>' : `<span class="status bad">Insolvent from day ${day(row.scenarioFailure)}</span>`}</td></tr>`;
+        return `<tr><td>${escapeHtml(row.name)}</td><td>${number.format(row.start)}</td><td>${number.format(row.baselineEnd)}</td><td class="${row.scenarioEnd < 0 ? 'negative' : ''}">${number.format(row.scenarioEnd)}</td><td class="${change < -0.5 ? 'negative' : ''}">${change < -0.5 ? '−' : change > 0.5 ? '+' : ''}${number.format(Math.abs(change))}</td><td>${number.format(row.lowestCash)}${row.lowestCashShare === null ? '' : ` <span class="empty">(${(100 * row.lowestCashShare).toFixed(1)}% of deposits)</span>`}</td><td>${row.scenarioFailure === null ? '<span class="status ok">Solvent</span>' : `<span class="status bad">Insolvent from about day ${day(row.scenarioFailure)}</span>`}</td></tr>`;
     }).join('')}</tbody>`;
 }
 

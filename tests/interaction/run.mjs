@@ -205,7 +205,7 @@ try {
         // Project-scoped constants are one definition each; the lending facility keeps its own live knob.
         await window.click('#parametersButton');
         await window.waitForSelector('#parametersPanel:not([hidden])');
-        assert.match(await window.textContent('#parametersSummary'), /· 15 shared$/, 'Nine shared parameters plus six per-pair credit shares.');
+        assert.match(await window.textContent('#parametersSummary'), /· 16 shared$/, 'Ten shared parameters (including the payment capacity) plus six per-pair credit shares.');
 
         await runToTarget();
         const [baseline] = await finalSamples();
@@ -415,6 +415,9 @@ try {
         const results = await readFile(join(folder, 'results.csv'), 'utf8');
         assert.match(results, /^branch,time,node,state,unit,value\n/);
         assert.ok(results.includes('Depositor run,') && results.includes('Baseline,'), 'The results file holds both branches.');
+        // A bank cannot pay out more than it holds: no institution's reserves ever go below zero in any branch.
+        const reserveValues = results.split('\n').filter((line) => /,Reserves,/i.test(line) && !line.includes('Central bank') && !line.includes('Depositor wallets')).map((line) => Number(line.split(',').at(-1)));
+        assert.ok(reserveValues.length > 0 && Math.min(...reserveValues) > -1e-6, `Reserves stay at or above zero (lowest ${Math.min(...reserveValues)}).`);
         console.log(`Start window: import, scenario, comparison, canvas and export all work (${manifest.scenario.interventions.length} intervention applied to ${manifest.scenario.chosenEntity}).`);
     });
 

@@ -6,7 +6,7 @@
     "domains": [
         "finance"
     ],
-    "description": "A central bank lends reserves to a bank: reserves flow in and the matching borrowing is recorded. One live \"Emergency lending\" parameter drives both legs, so one slider (or one fork intervention) is enough. Select the central bank and the bank, then click this bundle.",
+    "description": "A central bank lends reserves to a bank while the bank is short of its reserve target: reserves flow in and the matching borrowing is recorded. The lending is at most the \"Emergency lending\" rate and tapers to nothing as the bank's reserves approach the target, so support ends by itself once the bank is no longer short. One live parameter drives both legs, so one slider (or one fork intervention) is enough. Select the central bank and the bank, then click this bundle.",
     "color": "#9c83c4",
     "endpoints": [
         {
@@ -32,6 +32,15 @@
                 "step": 1
             },
             "scope": "instance"
+        },
+        {
+            "key": "reserveTarget",
+            "name": "Reserve target",
+            "symbol": "reserveTarget",
+            "value": 100,
+            "unit": "M",
+            "mode": "constant",
+            "scope": "project"
         }
     ],
     "edges": [
@@ -48,13 +57,18 @@
                 "role": "target",
                 "state": "reserves"
             },
-            "latex": "\\mathrm{injection}",
+            "latex": "\\mathrm{injection} \\cdot \\max\\left(0, 1 - \\frac{\\mathrm{targetReserves}}{\\mathrm{reserveTarget}}\\right)",
             "color": "#9c83c4",
             "parameters": [
                 {
                     "name": "Emergency lending",
                     "symbol": "injection",
                     "shared": "lending"
+                },
+                {
+                    "name": "Reserve target",
+                    "symbol": "reserveTarget",
+                    "shared": "reserveTarget"
                 }
             ]
         },
@@ -64,19 +78,27 @@
             "to": "bank",
             "ports": {
                 "source": "reserves",
-                "target": "borrowing"
+                "target": [
+                    "borrowing",
+                    "reserves"
+                ]
             },
             "output": {
                 "role": "target",
                 "state": "borrowing"
             },
-            "latex": "\\mathrm{injection}",
+            "latex": "\\mathrm{injection} \\cdot \\max\\left(0, 1 - \\frac{\\mathrm{targetReserves}}{\\mathrm{reserveTarget}}\\right)",
             "color": "#9c83c4",
             "parameters": [
                 {
                     "name": "Emergency lending",
                     "symbol": "injection",
                     "shared": "lending"
+                },
+                {
+                    "name": "Reserve target",
+                    "symbol": "reserveTarget",
+                    "shared": "reserveTarget"
                 }
             ]
         }
