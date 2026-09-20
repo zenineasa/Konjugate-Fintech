@@ -7,6 +7,7 @@
 // outside, so this drives the app through Playwright instead.
 
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -419,6 +420,165 @@ try {
         const reserveValues = results.split('\n').filter((line) => /,Reserves,/i.test(line) && !line.includes('Central bank') && !line.includes('Depositor wallets')).map((line) => Number(line.split(',').at(-1)));
         assert.ok(reserveValues.length > 0 && Math.min(...reserveValues) > -1e-6, `Reserves stay at or above zero (lowest ${Math.min(...reserveValues)}).`);
         console.log(`Start window: import, scenario, comparison, canvas and export all work (${manifest.scenario.interventions.length} intervention applied to ${manifest.scenario.chosenEntity}).`);
+    });
+
+    // --- Scenario 6b: the settings on the Start window: change, refuse, mark, record, explore, pin. -----------
+    const exportDirectory2 = join(scratch, 'export2');
+    await mkdir(exportDirectory2, { recursive: true });
+    await withApp(nodesOnly.path, async ({ app, window }) => {
+        await app.evaluate(({ dialog }) => {
+            globalThis.fintechDialogAnswers = [];
+            dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [globalThis.fintechDialogAnswers.shift()] });
+        });
+        const answer = (path) => app.evaluate((_electron, value) => { globalThis.fintechDialogAnswers.push(value); }, path);
+        await window.click('.addonTool[data-addon-id="konjugate.fintech.start"][data-command-id="openStart"]');
+        let start;
+        for (let attempt = 0; attempt < 150 && !start; attempt += 1) {
+            start = app.windows().find((candidate) => candidate.url().includes('konjugate.fintech.start'));
+            if (!start) await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        assert.ok(start, 'The Fintech start window did not open.');
+        const pageErrors = [];
+        start.on('pageerror', (error) => pageErrors.push(error.message));
+        await start.waitForSelector('#useSample');
+        await start.click('#useSample');
+        await start.waitForSelector('#importResult .notice.ok', { timeout: 60000 });
+        await start.click('#toScenarios');
+        await start.click('[data-scenario="runWithPriceShock"]');
+        await start.waitForSelector('#entityChoice');
+
+        // The panel is collapsed, every control starts at its default, and nothing is marked as changed.
+        assert.equal(await start.locator('#controls').evaluate((element) => element.open), false, 'The settings panel is collapsed by default.');
+        assert.equal(await start.textContent('#controlsBadge'), 'defaults');
+        assert.equal(await start.locator('#resetAll').isDisabled(), true);
+        await start.click('#controls > summary');
+        assert.equal(await start.inputValue('#n-haircut'), '50');
+        assert.equal(await start.inputValue('#n-a\\:reserveTargetShare'), '10');
+        assert.equal(await start.locator('[data-marker="haircut"] button').count(), 0);
+        assert.match(await start.textContent('#controlsBody'), /Cash \/ deposits/, 'Plain data ratios are shown beside each institution.');
+
+        // A value the model cannot work with is refused with a reason, and blocks the run; one outside the advisory band is allowed with a note.
+        await start.fill('#n-haircut', '150');
+        await start.waitForSelector('#controlProblems .notice.error');
+        assert.match(await start.textContent('#controlProblems'), /Forced-sale discount cannot be above 100%/);
+        assert.equal(await start.locator('#runScenario').isDisabled(), true);
+        await start.fill('#n-haircut', '85');
+        assert.equal(await start.locator('#controlProblems .notice').count(), 0);
+        assert.equal(await start.locator('#runScenario').isDisabled(), false, 'Outside the advisory band is advice, not a refusal.');
+        assert.match(await start.textContent('[data-detail="haircut"]'), /Outside the range this model has been explored over/);
+
+        // A changed value is marked with its default, and can be reset on its own.
+        await start.fill('#n-haircut', '30');
+        await start.waitForSelector('[data-marker="haircut"] button');
+        assert.match(await start.textContent('[data-marker="haircut"]'), /changed from 50%/);
+        assert.equal(await start.textContent('#controlsBadge'), '1 changed');
+
+        // Run with it: the results say the run is custom, and the export records what was changed.
+        await start.click('#runScenario');
+        await start.waitForSelector('#panel-results.active #tiles .tile', { timeout: 120000 });
+        assert.match(await start.textContent('#customSettings'), /Custom settings/);
+        assert.match(await start.textContent('#customSettings'), /forced-sale discount/);
+        assert.match(await start.textContent('#headline'), /1 of 8 institutions become insolvent/, 'A 30% discount makes Alder fail and nobody else.');
+        await answer(exportDirectory2);
+        await start.click('#exportResults');
+        await start.waitForFunction(() => document.querySelector('#exportStatus').textContent.includes('Saved.'), null, { timeout: 30000 });
+        const [folder] = await readdir(exportDirectory2);
+        assert.ok((await readdir(join(exportDirectory2, folder))).includes('run-manifest.json'), `Export folder holds ${(await readdir(join(exportDirectory2, folder))).join(', ')}; status: ${await start.textContent('#exportStatus')}`);
+        const manifest = JSON.parse(await readFile(join(exportDirectory2, folder, 'run-manifest.json'), 'utf8'));
+        assert.deepEqual(manifest.overrides.baseHaircut, { '*': { value: 0.3 } }, 'The override is recorded in the run manifest.');
+        assert.equal(manifest.importerOptions, undefined, 'No importer options were changed, so none are recorded.');
+        assert.ok(manifest.scenario.interventions.some((change) => change.parameter === 'baseHaircut' && change.value === 0.3), 'The applied value is recorded too.');
+
+        // An assumption rebuilds the model and is recorded as an importer option; halving the reserve target means nobody fails.
+        await start.click('#anotherScenario');
+        await start.fill('#n-a\\:reserveTargetShare', '5');
+        await start.click('#resetAll').catch(() => {});
+        await start.fill('#n-a\\:reserveTargetShare', '5');
+        await start.fill('#n-haircut', '50');
+        await start.click('#runScenario');
+        await start.waitForFunction(() => /No institution becomes insolvent/.test(document.querySelector('#headline').textContent), null, { timeout: 120000 });
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        await answer(exportDirectory2);
+        await start.click('#exportResults');
+        // The status from the first export is still on the page, so wait for the second folder and its manifest to exist.
+        let second;
+        for (let attempt = 0; attempt < 300 && !second; attempt += 1) {
+            const folders = (await readdir(exportDirectory2)).sort();
+            const path = join(exportDirectory2, folders.at(-1), 'run-manifest.json');
+            if (folders.length === 2 && existsSync(path)) second = JSON.parse(await readFile(path, 'utf8'));
+            else await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        assert.ok(second, `The second export was written. Status: ${await start.textContent('#exportStatus')}; folders: ${(await readdir(exportDirectory2)).join(', ')}`);
+        assert.deepEqual(second.importerOptions, { assumptions: { reserveTargetShare: 0.05 } }, 'The changed assumption is recorded as an importer option.');
+
+        // Reset all returns to the declared scenario, and its result is exactly the one it always was.
+        await start.click('#anotherScenario');
+        await start.click('#resetAll');
+        assert.equal(await start.textContent('#controlsBadge'), 'defaults');
+        await start.click('#runScenario');
+        await start.waitForFunction(() => /3 of 8 institutions become insolvent/.test(document.querySelector('#headline').textContent), null, { timeout: 120000 });
+        assert.match(await start.textContent('#headline'), /Total equity falls by 49,339 million/);
+        assert.equal((await start.textContent('#customSettings')).trim(), '', 'A default run says nothing about custom settings.');
+
+        // Pin this run, run a milder one, and compare.
+        await start.click('#pinRun');
+        await start.click('#anotherScenario');
+        await start.fill('#n-haircut', '30');
+        await start.click('#runScenario');
+        await start.waitForFunction(() => document.querySelector('#pinCompare').textContent.includes('Pinned') && /1 of 8/.test(document.querySelector('#headline').textContent), null, { timeout: 120000 });
+        const pinText = await start.textContent('#pinCompare');
+        assert.match(pinText, /3: [A-Za-z ,]*Alder Bank[A-Za-z ,]*Holly Bank|3: [A-Za-z ,]*Holly Bank[A-Za-z ,]*Alder Bank/);
+        assert.match(pinText, /49,339/);
+        assert.match(pinText, /24,833 \(−24,506\)/, 'The milder run is compared with the pinned one.');
+        await start.click('#anotherScenario');
+        await start.click('#resetAll');
+
+        // Concurrent runs share one baseline and both succeed.
+        const concurrent = await start.evaluate(async () => {
+            const api = window.konjugateLauncher;
+            const both = await Promise.all([1, 2].map((n) => api.runScenario('depositorRun', { entity: 'Alder Bank', signals: ['equity'], runTime: 40 + n * 0, retain: false })));
+            return both.map((answer) => answer.ok);
+        });
+        assert.deepEqual(concurrent, [true, true]);
+
+        // Explore: rank every institution; each row is the same shock on that institution, worst first.
+        await start.click('.step[data-step="explore"]');
+        await start.click('#runRank');
+        await start.waitForSelector('#rankTable tbody tr', { timeout: 300000 });
+        assert.equal(await start.locator('#rankTable tbody tr').count(), 8);
+        const firstRow = (await start.locator('#rankTable tbody tr').first().textContent());
+        assert.match(firstRow, /Alder Bank.*49,339/, 'Alder is the worst case, at the number a single run gives.');
+        assert.match(await start.textContent('#explore-rank'), /does not say which institution is likely to be run on/);
+
+        // Find the breaking point of the haircut for Alder, then confirm it stands.
+        await start.click('[data-explore="breaking"]');
+        await start.fill('#bpLow', '10');
+        await start.click('#runBreaking');
+        await start.waitForSelector('#bpHeadline', { timeout: 300000 });
+        assert.match(await start.textContent('#bpHeadline'), /Alder Bank fails from a forced-sale discount of about 1[0-9]\.\d+%/);
+        assert.match(await start.textContent('#explore-breaking'), /confirmed by running again just below/);
+
+        // Which assumptions matter, with the fragility written out.
+        await start.click('[data-explore="sensitivity"]');
+        await start.click('#runSensitivity');
+        await start.waitForSelector('#sensitivityBars', { timeout: 600000 });
+        const bars = await start.textContent('#sensitivityBars');
+        assert.match(bars, /Reserve target[\s\S]*Fragile\.[\s\S]*halving this: nobody fails/);
+
+        // The four networks side by side.
+        await start.click('[data-explore="networks"]');
+        await start.click('#runNetworks');
+        await start.waitForSelector('#networkTable tbody tr', { timeout: 300000 });
+        assert.equal(await start.locator('#networkTable tbody tr').count(), 4);
+        const networkText = await start.textContent('#networkTable');
+        assert.match(networkText, /Interbank frozen/);
+        assert.match(networkText, /No interbank exposure/);
+
+        // Exploring puts everything back: the last run still opens in the canvas, and the window raised no errors.
+        await start.click('.step[data-step="results"]');
+        assert.match(await start.textContent('#headline'), /1 of 8/);
+        assert.deepEqual(pageErrors, [], `The window raised no errors (${pageErrors.join(' | ')}).`);
+        console.log('Start settings: refused, marked, recorded, reset, pinned, ranked, broken down, and compared across networks.');
     });
 
     // --- Scenario 7: the Markets window: series -> links -> model -> what-if -> canvas. --------------

@@ -20,6 +20,37 @@
 </table>
 <p>All of these are parameters in the model. Open it in Konjugate and use the Parameters table to see and change them.</p>
 
+<h2>Settings you can change</h2>
+<p>Every setting has a default (the value the model has always used), a hard limit and an advisory band. The <b>hard limit</b> is the widest range where the model still works, and it is the only thing enforced: a share must be above 0% and at most 100%, rates and discounts cannot be negative, a discount cannot exceed 100%. The <b>advisory band</b> is roughly half to one and a half times the default, the region the model was explored over. Outside it the window says so and the run goes ahead. The bands are not a view of what is realistic. Anything you change is marked in the window, listed on the results page, and recorded in the run manifest (the options the model was rebuilt with, and the changes made to the scenario) when you export.</p>
+<table>
+<tr><th>Setting</th><th>Default</th><th>What it does</th></tr>
+<tr><td>Reserve target</td><td>10% of deposits</td><td>Where stress starts. Each institution's target is the smaller of this share of its deposits and the cash it holds now, so raising it beyond an institution's cash changes nothing for that institution. It also sets where panic and forced sales start, so it moves several things at once. It is the single biggest lever in the severe scenario.</td></tr>
+<tr><td>Forced-sale speed</td><td>2% of loans a day</td><td>How fast an institution short of cash sells loans.</td></tr>
+<tr><td>Market depth</td><td>83% of total loans</td><td>How much the market absorbs before prices fall; smaller means forced sales move prices more.</td></tr>
+<tr><td>Interbank lending speed</td><td>0.05 a day</td><td>How fast cash moves along interbank links.</td></tr>
+<tr><td>Panic sensitivity</td><td>4</td><td>How much faster depositors withdraw as cash falls below the target.</td></tr>
+<tr><td>Speed losses reach creditors</td><td>1 a day</td><td>How quickly a failed institution's shortfall is passed on. It moves when second-round failures happen, not how much is lost in total.</td></tr>
+<tr><td>Central-bank reserves and facility</td><td>25% of deposits; up to 10% of deposits a day</td><td>How much the central bank holds, and the most it can lend an institution in a day.</td></tr>
+<tr><td>Forced-sale discount</td><td>10% (50% in the severe scenarios)</td><td>How far below book value a forced sale fetches.</td></tr>
+<tr><td>Withdrawal rate, start, duration, support, simulation length</td><td>as the scenario declares</td><td>The shock itself.</td></tr>
+</table>
+
+<h2>Four ways to treat the interbank network</h2>
+<ul>
+<li><b>Exposures as given</b> (estimated from each institution's totals if none were given): the network the model has always used.</li>
+<li><b>Estimated</b>: each institution's interbank totals spread over the others in proportion, even where exposures were given.</li>
+<li><b>Interbank frozen</b>: every institution keeps its interbank claims and borrowing at book value, but no cash moves between institutions and no losses are passed on when one fails.</li>
+<li><b>No interbank exposure</b>: the interbank balances are removed. Each institution settles its net position (what it lent less what it borrowed) in cash, so its equity is unchanged and its balance sheet still balances. It cannot be used where an institution's net borrowing exceeds its cash, and the window says so.</li>
+</ul>
+<p>The two ways of having no network are different things and can give different answers, so compare all four (on the Explore step) before relying on any one.</p>
+
+<h2>What exploring does and does not tell you</h2>
+<ul>
+<li><b>Ranking</b> is the same shock on each institution in turn: how much damage a run on each would do, if it happened. It does not say which institution is likely to be run on. The model has no idea.</li>
+<li><b>The breaking point</b> is the first change found across the range you give, at a stated resolution, checked by running just below and just above it. It is not proven to be the only one: the window says when the outcome changes more than once, and the answer depends on how long the simulation runs.</li>
+<li><b>Which assumptions matter</b> halves and raises each assumption by half around its current value, one at a time. It ranks over ranges we chose, not which assumption is most uncertain, and it ignores interactions. Where a change alters who fails, the assumption is marked fragile in words. The reserve target is: on the sample data, halving it means nobody fails in the severe scenario.</li>
+</ul>
+
 <h2>What it simplifies</h2>
 <ul>
 <li>Losses pass to creditors in fixed shares, not through a solved clearing vector (Eisenberg–Noe).</li>

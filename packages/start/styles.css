@@ -116,3 +116,36 @@ svg text { fill: var(--muted); font: 11px var(--font); }
 
 /* The action that moves the user on stays in view however long the list above it grows. */
 #panel-scenario .actions { position: sticky; bottom: -1px; z-index: 2; margin: 0 -8px; padding: 16px 8px 14px; background: linear-gradient(to bottom, transparent, var(--bg) 28%); }
+
+/* ---- settings and exploring ---- */
+.controls { margin-top: 16px; }
+.controls > summary { cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.controls h4 { margin: 20px 0 6px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.ctl { display: grid; grid-template-columns: minmax(180px, 1.3fr) minmax(120px, 1fr) 96px minmax(150px, auto); gap: 6px 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(35, 55, 74, .5); }
+.ctl label { font-weight: 600; }
+.ctl label small { display: block; font-weight: 400; color: var(--muted); }
+.ctl input[type="range"] { width: 100%; accent-color: var(--accent); }
+.ctl input[type="number"], .ctable input[type="number"] { width: 100%; padding: 6px 8px; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; font: inherit; }
+.ctl.invalid input[type="number"], .ctable input.invalid { border-color: var(--danger); }
+.ctl .marker { font-size: 12px; color: var(--warn); }
+.ctl .marker button { margin-left: 6px; }
+.ctl .detail { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+.ctl .detail.problem { color: var(--danger); }
+.ctl .detail.advice { color: var(--warn); }
+.ctl .detail.fragile { color: var(--text); }
+.ctl .detail.fragile b { color: var(--warn); }
+.ctable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ctable th, .ctable td { padding: 5px 8px; text-align: left; border-bottom: 1px solid rgba(35, 55, 74, .5); }
+.ctable td.number, .ctable th.number { text-align: right; }
+.ctable-wrap { max-height: 280px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; margin-top: 6px; }
+.explore-tabs { margin: 0 0 14px; padding: 0; background: none; border: none; }
+.explore-card { padding: 18px 20px; }
+.explore-card .title { font-weight: 600; margin-bottom: 4px; }
+.explore-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-top: 10px; }
+.explore-row label.field { margin-top: 0; }
+.bars { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 6px 12px; align-items: center; margin-top: 10px; font-size: 13px; }
+.bar-track { position: relative; height: 18px; background: rgba(255, 255, 255, .03); border-radius: 4px; }
+.bar-track i { position: absolute; top: 2px; height: 14px; border-radius: 3px; }
+.bar-track .zero { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--muted); }
+.pin { margin-top: 16px; }
+.customSettings ul { margin: 4px 0 0; padding-left: 18px; }

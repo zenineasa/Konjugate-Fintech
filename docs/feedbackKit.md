@@ -13,10 +13,26 @@ For the person running the conversation. The goal is not to sell: it is to learn
 
 1. **Frame it (1 min).** "This is a stress-testing sketch: you give it balance sheets, pick a shock, and it shows who fails and when, against a baseline with no shock." Say what it is not: not a regulatory model, not a forecast.
 2. **Bring data in (2 min).** Choose the two demo files. Point out the summary ("8 institutions, 38 exposures") and the table. Then choose the problems file and show the error naming the file, line and row. Ask: is this how your data looks, and would you expect a different error?
-3. **Pick a scenario (2 min).** Show the four: one institution's depositor run, the same run with a severe fire-sale price shock (forced sales at half of book value, where stress spreads to two more banks), that run with central-bank support (compare the last two to see what support is worth), and a market-wide run. Change the institution or severity.
+3. **Pick a scenario (2 min).** Show the four (each has settings behind it; see the third walkthrough): one institution's depositor run, the same run with a severe fire-sale price shock (forced sales at half of book value, where stress spreads to two more banks), that run with central-bank support (compare the last two to see what support is worth), and a market-wide run. Change the institution or severity.
 4. **Read the result (3 min).** Read the headline aloud, then the chart of equity against the baseline, then the table. Ask the guest to say, in their words, what they think the number means before you explain it.
 5. **Go deeper (1 min).** Open in the canvas to show the baseline and the shock as two branches of the same run, then export and show the run manifest (versions, file hashes, changes applied).
 6. **Stop and ask (1 min onward).** Move to the questions; do not keep demoing.
+
+## Optional third walkthrough: settings and exploring (five minutes)
+
+Use this with a guest who wants to challenge the numbers. Nothing here is calibrated, and the point is to show them how much each assumption matters, not to defend a result.
+
+1. **Change one thing (1 minute).** On the scenario page open "Settings for this run" and lower the forced-sale discount from 50% to 30%. Point at the "changed from 50%" marker and run it: one bank fails instead of three. Ask what discount they would consider severe.
+2. **Show what drives it (2 minutes).** On the Explore step, "Which assumptions matter": the reserve target is marked fragile, because halving it means nobody fails. Ask which of these assumptions they could actually supply from their own data.
+3. **Show the network (1 minute).** "Compare the networks": the same scenario with the exposures as given, estimated, frozen and removed. Ask whether they would have a real exposure matrix.
+4. **Rank and break (1 minute).** "Rank institutions" and "Find the breaking point". Say plainly that ranking is "if this bank were run on", and that the breaking point is the first change found, not proven unique.
+
+Questions for this segment:
+- Which of these settings would you want to fix from your own data, and which would you leave to us?
+- Is a result that flips when one uncalibrated assumption is halved useful to you, or does it make you distrust the tool?
+- Would you expect a range or a distribution over the assumptions, rather than one run at a time?
+- Which institution would you rank first, and would you trust the ranking?
+- What would you need recorded for a result to be reproducible in a review (the run manifest records the options and the changes)?
 
 ## Optional second walkthrough: markets (five minutes)
 

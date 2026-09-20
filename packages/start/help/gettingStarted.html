@@ -11,7 +11,11 @@
 <h2>3. Read the comparison</h2>
 <p>The headline says how many institutions fail, which fails first and when, and how much equity is lost, next to the same figures with no shock. The chart shows the most affected institutions' equity as a share of where it started: a dashed line is the baseline, a solid line is the scenario, and a line below zero is an insolvent institution. The table lists every institution.</p>
 
-<h2>4. Inspect, save, repeat</h2>
+<h2>4. Change the settings, and explore</h2>
+<p>Under <b>Settings for this run</b> on the scenario page, every setting starts at the value the scenario uses. You can change which institutions are stressed and each one's withdrawal rate, when the run starts and how long it lasts, the forced-sale discount, central-bank support and how long the simulation runs. Below them are the assumptions the model rebuilds itself with (the reserve target, how fast forced sales and interbank lending happen, panic sensitivity, and others) and four ways of treating the interbank network. A setting that differs from its default is marked, with a button to put it back, and <b>Reset all settings</b> returns to the scenario as declared. Values the model cannot work with are refused with a reason; values outside the range the model was explored over get a note and are allowed. Nothing is calibrated to your institutions.</p>
+<p>The <b>Explore</b> step runs the scenario many times: <b>rank institutions</b> (the same shock on each in turn, worst first), <b>find the breaking point</b> (the smallest discount or withdrawal rate at which an institution fails, checked by running just below and just above it), <b>which assumptions matter</b> (each one halved and raised by half, with a plain note where that changes who fails) and <b>compare the networks</b>. On the results page, <b>Pin this run to compare</b> keeps one run's numbers beside the next.</p>
+
+<h2>5. Inspect, save, repeat</h2>
 <p><b>Open in Konjugate</b> shows the same two runs in the main window as a baseline and a forked branch, where every equation and parameter can be inspected and changed. <b>Export results</b> writes the full time series, a summary, the model, and a run manifest recording exactly what produced them, ready to attach to a report or compare with next quarter's run.</p>
 
 <div class="note">The model is illustrative. It has not been validated against real data or reviewed by a practitioner, and it should not be used for regulatory reporting. See <b>Assumptions and limits</b>.</div>

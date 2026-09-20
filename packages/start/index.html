@@ -12,7 +12,8 @@
         <button class="step" type="button" data-step="data" aria-current="step"><span class="number">1</span><span><b>Your data</b><small>Balance sheets and exposures</small></span></button>
         <button class="step" type="button" data-step="scenario" disabled><span class="number">2</span><span><b>Scenario</b><small>Choose what to test</small></span></button>
         <button class="step" type="button" data-step="results" disabled><span class="number">3</span><span><b>Results</b><small>Compare with the baseline</small></span></button>
-        <button class="step" type="button" data-step="learn"><span class="number">4</span><span><b>Learn</b><small>Format, assumptions, guides</small></span></button>
+        <button class="step" type="button" data-step="explore" disabled><span class="number">4</span><span><b>Explore</b><small>Rank, breaking point, sensitivity</small></span></button>
+        <button class="step" type="button" data-step="learn"><span class="number">5</span><span><b>Learn</b><small>Format, assumptions, guides</small></span></button>
         <p class="rail-note">Everything stays on this computer. The model is illustrative and has not been validated for regulatory use.</p>
     </nav>
 
@@ -39,9 +40,16 @@
             </header>
             <div class="scenarios" id="scenarioList" role="group" aria-label="Scenarios"></div>
             <div class="detail card hidden" id="scenarioDetail"></div>
+            <details class="card controls" id="controls">
+                <summary>Settings for this run <span class="badge" id="controlsBadge">defaults</span></summary>
+                <p class="lede" style="margin: 8px 0 0">Every setting starts at the value the scenario uses. Change what you like: nothing is calibrated to your institutions, and a note appears beside a value outside the range this model has been explored over. Values the model cannot work with are refused, with a reason.</p>
+                <div id="controlsBody"></div>
+            </details>
             <div class="actions">
                 <button class="button primary" type="button" id="runScenario" disabled>Run scenario</button>
+                <button class="button" type="button" id="resetAll" disabled>Reset all settings</button>
             </div>
+            <div id="controlProblems" aria-live="polite"></div>
             <div id="runStatus" aria-live="polite"></div>
         </section>
 
@@ -51,6 +59,7 @@
                 <p class="headline" id="headline"></p>
             </header>
             <div class="grid tiles" id="tiles"></div>
+            <div id="customSettings"></div>
             <div id="assumptionsBox"></div>
             <div class="card chart-card">
                 <h4 id="chartTitle">Equity of the most affected institutions, as a share of where it started</h4>
@@ -63,10 +72,31 @@
             <div class="actions">
                 <button class="button primary" type="button" id="openCanvas">Open in Konjugate to inspect</button>
                 <button class="button" type="button" id="exportResults">Export results…</button>
+                <button class="button" type="button" id="pinRun">Pin this run to compare</button>
                 <button class="button link" type="button" id="anotherScenario">Try another scenario</button>
             </div>
+            <div id="pinCompare"></div>
             <div id="exportStatus" aria-live="polite"></div>
             <p class="footnote">Insolvent means equity below zero at some point in the run. Open in Konjugate shows the same runs in the full canvas, where every equation and parameter can be inspected.</p>
+        </section>
+
+        <section class="panel" id="panel-explore" aria-labelledby="title-explore">
+            <header>
+                <h2 id="title-explore">Explore</h2>
+                <p class="lede" id="exploreLede">Run the current scenario, with your current settings, many times to see which institution matters most, where a control tips an institution over, and which assumptions drive the result.</p>
+            </header>
+            <div class="tabs explore-tabs" role="tablist" aria-label="Ways to explore">
+                <button class="tab" type="button" role="tab" data-explore="rank" aria-selected="true">Rank institutions</button>
+                <button class="tab" type="button" role="tab" data-explore="breaking" aria-selected="false">Find the breaking point</button>
+                <button class="tab" type="button" role="tab" data-explore="sensitivity" aria-selected="false">Which assumptions matter</button>
+                <button class="tab" type="button" role="tab" data-explore="networks" aria-selected="false">Compare the networks</button>
+            </div>
+            <div class="card explore-card" id="explore-rank"></div>
+            <div class="card explore-card hidden" id="explore-breaking"></div>
+            <div class="card explore-card hidden" id="explore-sensitivity"></div>
+            <div class="card explore-card hidden" id="explore-networks"></div>
+            <div class="actions"><button class="button" type="button" id="cancelExplore" hidden>Cancel</button></div>
+            <div id="exploreStatus" aria-live="polite"></div>
         </section>
 
         <section class="panel" id="panel-learn" aria-labelledby="title-learn">

@@ -9,17 +9,20 @@
 
 import { detectDecimalSeparator, normalizeHeading, parseCsv, parseLocalizedNumber } from '../lib/csv.mjs';
 import { NetworkBuilder, symbolFragment } from '../lib/networkBuilder.mjs';
+import { assumptionControls, assumptionDefaults, networkOptions, readOptions } from '../lib/scenarioControls.mjs';
 
 const maximumInstitutions = 40;
 const balanceTolerance = { absolute: 0.5, relative: 1e-4 };
-const assumptions = {
-    reserveTargetShareOfDeposits: 0.1,
-    centralBankShareOfDeposits: 0.25,
+// What the model assumes, built from the settings (see lib/scenarioControls.mjs, which holds the defaults and their limits). Nothing here is calibrated.
+const assumptionsFor = (settings) => ({
+    reserveTargetShareOfDeposits: settings.reserveTargetShare,
+    centralBankShareOfDeposits: settings.centralBankShare,
     marketCashShareOfLoans: 0.5,
-    marketDepthShareOfLoans: 0.8333,
-    withdrawalRateMaximum: 0.2,
-    emergencyLendingShareOfDepositsPerDay: 0.1
-};
+    marketDepthShareOfLoans: settings.marketDepthShare,
+    // The most a withdrawal rate can be set to during a run: the model's own limit, all of an institution's deposits in a day.
+    withdrawalRateMaximum: 1,
+    emergencyLendingShareOfDepositsPerDay: settings.facilityShare
+});
 
 const institutionColumns = {
     institution: ['institution', 'name', 'bank'],
@@ -109,9 +112,13 @@ function estimateExposures(assets, liabilities) {
     return supports(pruned) && Math.abs(total(pruned) - total(dense)) < 0.005 * total(dense) ? pruned : dense;
 }
 
-export default async function importData({ files, helpers }) {
+export default async function importData({ files, helpers, options = {} }) {
     const errors = [];
     const warnings = [];
+    const chosen = readOptions(options);
+    if (chosen.problems.length) return { ok: false, report: { errors: chosen.problems.map((message) => ({ file: 'settings', line: null, column: null, message })), warnings: [], summary: null, institutions: [] } };
+    const { settings, network } = chosen;
+    const assumptions = assumptionsFor(settings);
     const fail = (file, line, column, message) => errors.push({ file, line, column, message });
     const warn = (file, line, message) => warnings.push({ file, line, message });
 
@@ -259,7 +266,37 @@ export default async function importData({ files, helpers }) {
         }
     }
 
+    // ---- the interbank network, when the user has chosen to treat it differently -----------------------------
+    // "frozen" leaves every balance sheet as it is but builds no lending or default between institutions. "none" removes the interbank balances:
+    // an institution's net position (what it lent less what it borrowed) is settled in cash, so its equity is unchanged and its balance sheet
+    // still balances. "estimated" spreads each institution's interbank totals over the others in proportion, even where exposures were given.
+    if (!errors.length && network !== 'auto' && institutions.length) {
+        if (network === 'estimated') {
+            if (matrix && !exposuresEstimated) {
+                const lent = institutions.map((record) => record.interbankAssets);
+                const borrowed = institutions.map((record) => record.interbankLiabilities);
+                matrix = estimateExposures(lent, borrowed);
+                exposuresEstimated = true;
+                warn(exposuresName, null, 'The exposures given were set aside, and exposures were estimated from each institution\'s interbank totals instead, as chosen.');
+            }
+        } else if (network === 'frozen') {
+            matrix = null;
+            exposuresEstimated = false;
+            warn(institutionsName, null, 'The interbank network is frozen, as chosen: each institution keeps its interbank claims and borrowing at book value, but there is no lending between institutions and no losses are passed on when one fails.');
+        } else if (network === 'none') {
+            for (const record of institutions) {
+                const settled = record.cash + record.interbankAssets - record.interbankLiabilities;
+                if (settled < 0) fail(institutionsName, record.line, 'cash_and_reserves', `${record.name}: settling its net interbank borrowing of ${format(record.interbankLiabilities - record.interbankAssets)} would need more cash than it holds (${format(record.cash)}), so "no interbank exposure" cannot be used with this data.`);
+                else { record.cash = settled; record.interbankAssets = 0; record.interbankLiabilities = 0; record.assets = record.cash + record.loans; }
+            }
+            matrix = null;
+            exposuresEstimated = false;
+            if (!errors.length) warn(institutionsName, null, 'There is no interbank exposure, as chosen: each institution settled its net interbank position in cash and the interbank balances were removed, so equity is unchanged.');
+        }
+    }
+
     const summary = errors.length ? null : {
+        network,
         institutions: institutions.length,
         exposures: matrix ? matrix.flat().filter((value) => value > 0).length : 0,
         exposuresEstimated,
@@ -371,19 +408,37 @@ export default async function importData({ files, helpers }) {
         }
     }
 
+    // Constants the bundles define are set to the chosen values only where they differ from the defaults, so a default model is exactly what it always was.
+    for (const key of ['fireSaleRate', 'panicSensitivity', 'flowRate', 'writeDownRate']) {
+        if (settings[key] === assumptionDefaults[key]) continue;
+        const shared = builder.sharedParameters.find((candidate) => candidate.symbol === key);
+        if (!shared) continue;
+        builder.patchSharedParameter(shared, { value: settings[key] });
+        const entry = parameterIndex.find((candidate) => candidate.key === key);
+        if (entry) entry.value = settings[key];
+    }
+
     const document = builder.document({ globalTimeStep: 0.1, outputInterval: 0.5 });
+    // What the window needs to describe the controls: the model's own haircut, and how much each institution's central-bank facility can lend a day.
+    const data = {
+        haircutDefault: parameterIndex.find((entry) => entry.key === 'baseHaircut')?.value ?? null,
+        facilityMaximum: Object.fromEntries(parameterIndex.filter((entry) => entry.key === 'emergencyLending').map((entry) => [entry.entity, entry.maximum]))
+    };
     return {
         ok: true,
+        data,
         document,
         parameterIndex,
         report: {
             errors: [], warnings, summary, institutions: preview,
+            settings, changed: assumptionControls.filter((control) => settings[control.key] !== control.default).map((control) => control.key),
             assumptions: {
                 'Reserve target': `${assumptions.reserveTargetShareOfDeposits * 100}% of each institution's deposits, or its current reserves if lower`,
                 'Central bank reserves': `${assumptions.centralBankShareOfDeposits * 100}% of total deposits`,
                 'Asset market depth': `${assumptions.marketDepthShareOfLoans * 100}% of total loans`,
                 'Payment capacity': 'an institution can pay out at most five times its current cash a day; it cannot pay more than it holds',
                 'Central-bank support': 'lends up to the facility maximum a day while the institution is below its cash target, tapering to nothing as cash recovers; loans are never repaid',
+                'Interbank network': networkOptions.find((option) => option.key === network).label,
                 'Interbank default': exposuresEstimated ? 'shares from estimated exposures' : 'shares from the exposures file'
             }
         }
