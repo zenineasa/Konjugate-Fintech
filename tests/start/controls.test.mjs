@@ -5,14 +5,14 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
-import importData from '../../packages/start/importers/balanceSheet.mjs';
-import { assumptionControls, assumptionDefaults, checkValue, networkOptions, readOptions, shockControls } from '../../packages/start/lib/scenarioControls.mjs';
-import { assumptionSensitivity, findBreakingPoint, fragilityText, rankInstitutions, summarizeRun } from '../../packages/start/lib/explore.mjs';
-import { buildRequest, checkControls, defaultControls } from '../../packages/start/lib/scenarioRequest.mjs';
+import importData from '../../packages/toolbox/importers/balanceSheet.mjs';
+import { assumptionControls, assumptionDefaults, checkValue, networkOptions, readOptions, shockControls } from '../../packages/toolbox/lib/scenarioControls.mjs';
+import { assumptionSensitivity, findBreakingPoint, fragilityText, rankInstitutions, summarizeRun } from '../../packages/toolbox/lib/explore.mjs';
+import { buildRequest, checkControls, defaultControls } from '../../packages/toolbox/lib/scenarioRequest.mjs';
 import { fintechRoot, konjugateModule } from '../../scripts/konjugatePaths.mjs';
 
 const { reconcileEquationBindings, validateEquationLatex } = await import(pathToFileURL(konjugateModule('src/equationModel.mjs')));
-const packageRoot = join(fintechRoot, 'packages', 'start');
+const packageRoot = join(fintechRoot, 'packages', 'toolbox');
 const helpers = { reconcileEquationBindings, validateEquationLatex, readPackageJson: async (path) => JSON.parse(await readFile(join(fintechRoot, 'packages', 'engine', 'components', path.replace(/^bundles\//, '')), 'utf8')) };
 const sample = (name) => readFile(join(packageRoot, 'samples', name), 'utf8');
 const build = async (options, exposures = true) => importData({

@@ -4,8 +4,18 @@ import { baskets } from './lib/baskets.mjs';
 import { drawChart, palette, sparkline } from './lib/charts.mjs';
 import { analyzeWindows, preferTogetherDirection, toChanges } from './lib/market.mjs';
 
-const api = window.konjugateLauncher;
-const $ = (selector) => document.querySelector(selector);
+export function initMarketsController({ api, onModelUpdated, onScenarioRun }) {
+    const root = document.querySelector('#view-markets');
+    if (!root) return;
+    const $ = (selector) => root.querySelector(selector);
+    const $$ = (selector) => root.querySelectorAll(selector);
+
+/* Copyright © 2026 Zenin Easa Panthakkalakath */
+
+
+
+
+
 const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 const signed = (value, digits = 1) => `${value > 0.5 * 10 ** -digits ? '+' : value < -0.5 * 10 ** -digits ? '−' : ''}${Math.abs(value).toFixed(digits)}`;
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
@@ -32,8 +42,8 @@ const state = {
 // ---- steps and tabs ---------------------------------------------------------------------------------------
 
 function show(step) {
-    for (const panel of document.querySelectorAll('.panel')) panel.classList.toggle('active', panel.id === `panel-${step}`);
-    for (const button of document.querySelectorAll('.step')) {
+    for (const panel of $$('.panel')) panel.classList.toggle('active', panel.id === `panel-${step}`);
+    for (const button of $$('.step')) {
         if (button.dataset.step === step) button.setAttribute('aria-current', 'step');
         else button.removeAttribute('aria-current');
     }
@@ -42,13 +52,13 @@ function show(step) {
 
 function refreshSteps() {
     const steps = { data: true, links: Boolean(state.read), whatif: Boolean(state.built), results: Boolean(state.run), learn: true };
-    for (const button of document.querySelectorAll('.step')) {
+    for (const button of $$('.step')) {
         button.disabled = !steps[button.dataset.step];
         button.classList.toggle('done', Boolean({ data: state.read, links: state.built, whatif: state.run }[button.dataset.step]));
     }
 }
 
-for (const button of document.querySelectorAll('.step')) button.addEventListener('click', () => show(button.dataset.step));
+for (const button of $$('.step')) button.addEventListener('click', () => show(button.dataset.step));
 document.addEventListener('click', (event) => {
     const page = event.target.closest('[data-page]')?.dataset.page;
     if (page) call(api.openPage(page)).catch((error) => console.error(error));
@@ -1163,7 +1173,7 @@ $('#projectSeries').addEventListener('change', (event) => { if (state.run?.kind 
 
 $('#openCanvas').addEventListener('click', async () => {
     try {
-        await call(api.openInCanvas(state.run.scenario.scenarioId));
+        await call(api.openInCanvas(state.run.scenario.scenarioId, { focus: true }));
         $('#exportStatus').innerHTML = notice('ok', 'Opened in the main Konjugate window, with the run with no shock and the scenario as two branches.');
     } catch (error) {
         $('#exportStatus').innerHTML = notice('error', escapeHtml(error.message));
@@ -1233,3 +1243,4 @@ function renderLearn() {
         $('#importStatus').innerHTML = notice('error', escapeHtml(error.message));
     }
 })();
+}

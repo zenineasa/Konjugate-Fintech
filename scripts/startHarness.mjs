@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { fintechRoot, konjugateDir, konjugateModule } from './konjugatePaths.mjs';
-import { summarizeRun } from '../packages/start/lib/explore.mjs';
+import { summarizeRun } from '../packages/toolbox/lib/explore.mjs';
 
 export const host = await import(pathToFileURL(konjugateModule('src/launcherHost.mjs')));
 const adapter = await import(pathToFileURL(konjugateModule('src/engineAdapter.mjs')));
@@ -18,7 +18,7 @@ const bundleIds = ['commercialBank', 'depositorWallets', 'centralBank', 'assetMa
 // A copy of the package with its bundles, as the built add-on would have them.
 export async function startPackage() {
     const directory = await mkdtemp(join(tmpdir(), 'start-harness-'));
-    await cp(join(fintechRoot, 'packages', 'start'), directory, { recursive: true });
+    await cp(join(fintechRoot, 'packages', 'toolbox'), directory, { recursive: true });
     for (const id of bundleIds) await cp(join(fintechRoot, 'packages', 'engine', 'components', `${id}.json`), join(directory, 'bundles', `${id}.json`));
     return { directory, manifest: JSON.parse(await readFile(join(directory, 'addon.json'), 'utf8')), remove: () => rm(directory, { recursive: true, force: true }) };
 }

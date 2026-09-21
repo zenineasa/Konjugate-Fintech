@@ -302,7 +302,7 @@ try {
     });
 
     // --- Scenario 6: the Start window: your data -> scenario -> comparison -> canvas -> export. -------
-    const samplesDirectory = join(fintechRoot, 'packages', 'start', 'samples');
+    const samplesDirectory = join(fintechRoot, 'packages', 'toolbox', 'samples');
     const badDirectory = join(scratch, 'bad');
     await mkdir(badDirectory, { recursive: true });
     const header = 'institution,cash_and_reserves,loans_and_securities,interbank_assets,deposits_and_other_liabilities,interbank_liabilities,equity\n';
@@ -317,18 +317,19 @@ try {
         });
         const answer = (path) => app.evaluate((_electron, value) => { globalThis.fintechDialogAnswers.push(value); }, path);
 
-        await window.click('.addonTool[data-addon-id="konjugate.fintech.start"][data-command-id="openStart"]');
+        await window.click('.addonTool[data-addon-id="konjugate.fintech.toolbox"][data-command-id="openFintechToolbox"]');
         // Other windows (an example guide, a welcome window) may open around it, so find the launcher by its page.
         let start;
         for (let attempt = 0; attempt < 150 && !start; attempt += 1) {
-            start = app.windows().find((candidate) => candidate.url().includes('konjugate.fintech.start'));
+            start = app.windows().find((candidate) => candidate.url().includes('konjugate.fintech.toolbox'));
             if (!start) await new Promise((resolve) => setTimeout(resolve, 100));
         }
-        assert.ok(start, 'The Fintech start window did not open.');
+        assert.ok(start, 'The Fintech toolbox window did not open.');
         const startLog = [];
         start.on('console', (message) => startLog.push(`${message.type()}: ${message.text().slice(0, 300)}`));
         start.on('pageerror', (error) => startLog.push(`pageerror: ${error.message.slice(0, 300)}`));
         await start.waitForLoadState('domcontentloaded');
+        await start.click('[data-launch="start"]');
         await start.waitForSelector('#slots .slot', { timeout: 15000 }).catch((error) => { throw new Error(`${error.message}\nStart window log:\n${startLog.join('\n')}\nURL: ${start.url()}`); });
         await start.waitForSelector('.konjugateAddonIdentity > img', { timeout: 10000 });
         assert.equal(await start.locator('#slots .slot').count(), 2, 'The window offers an institutions slot and an exposures slot.');
@@ -407,7 +408,7 @@ try {
         assert.deepEqual((await readdir(folder)).sort(), ['project.kjt', 'results.csv', 'run-manifest.json', 'summary.csv']);
         const manifest = JSON.parse(await readFile(join(folder, 'run-manifest.json'), 'utf8'));
         const digest = async (path) => createHash('sha256').update(await readFile(path)).digest('hex');
-        assert.equal(manifest.package.addonId, 'konjugate.fintech.start');
+        assert.equal(manifest.package.addonId, 'konjugate.fintech.toolbox');
         assert.equal(manifest.scenario.name, 'Depositor run');
         assert.equal(manifest.scenario.chosenEntity, 'Alder Bank');
         assert.equal(manifest.inputs.find((input) => input.role === 'institutions').sha256, await digest(join(samplesDirectory, 'institutions.csv')), 'The manifest records the hash of the file that was read.');
@@ -431,15 +432,16 @@ try {
             dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [globalThis.fintechDialogAnswers.shift()] });
         });
         const answer = (path) => app.evaluate((_electron, value) => { globalThis.fintechDialogAnswers.push(value); }, path);
-        await window.click('.addonTool[data-addon-id="konjugate.fintech.start"][data-command-id="openStart"]');
+        await window.click('.addonTool[data-addon-id="konjugate.fintech.toolbox"][data-command-id="openFintechToolbox"]');
         let start;
         for (let attempt = 0; attempt < 150 && !start; attempt += 1) {
-            start = app.windows().find((candidate) => candidate.url().includes('konjugate.fintech.start'));
+            start = app.windows().find((candidate) => candidate.url().includes('konjugate.fintech.toolbox'));
             if (!start) await new Promise((resolve) => setTimeout(resolve, 100));
         }
-        assert.ok(start, 'The Fintech start window did not open.');
+        assert.ok(start, 'The Fintech toolbox window did not open.');
         const pageErrors = [];
         start.on('pageerror', (error) => pageErrors.push(error.message));
+        await start.click('[data-launch="start"]');
         await start.waitForSelector('#useSample');
         await start.click('#useSample');
         await start.waitForSelector('#importResult .notice.ok', { timeout: 60000 });
@@ -593,13 +595,14 @@ try {
             dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [globalThis.fintechDialogAnswers.shift()] });
         });
         const answer = (path) => app.evaluate((_electron, value) => { globalThis.fintechDialogAnswers.push(value); }, path);
-        await window.click('.addonTool[data-addon-id="konjugate.fintech.markets"][data-command-id="openMarkets"]');
+        await window.click('.addonTool[data-addon-id="konjugate.fintech.toolbox"][data-command-id="openFintechToolbox"]');
         let markets;
         for (let attempt = 0; attempt < 150 && !markets; attempt += 1) {
-            markets = app.windows().find((candidate) => candidate.url().includes('konjugate.fintech.markets'));
+            markets = app.windows().find((candidate) => candidate.url().includes('konjugate.fintech.toolbox'));
             if (!markets) await new Promise((resolve) => setTimeout(resolve, 100));
         }
-        assert.ok(markets, 'The Fintech markets window did not open.');
+        assert.ok(markets, 'The Fintech toolbox window did not open.');
+        await markets.click('[data-launch="markets"]');
         await markets.waitForSelector('.tab[data-tab="files"]');
         assert.equal(await markets.locator('#readData').isDisabled(), true, 'At least two series are needed before anything can be read.');
         await markets.click('.tab[data-tab="files"]');

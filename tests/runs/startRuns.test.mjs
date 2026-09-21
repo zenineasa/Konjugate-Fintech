@@ -3,9 +3,9 @@
 // Runs Fintech Start against the real engine, headless. Needs a built engine (see the ReadMe); run with `npm run test:runs`.
 import assert from 'node:assert/strict';
 import test, { after } from 'node:test';
-import { assumptionControls, assumptionDefaults } from '../../packages/start/lib/scenarioControls.mjs';
-import { assumptionSensitivity, failingNames, findBreakingPoint, rankInstitutions } from '../../packages/start/lib/explore.mjs';
-import { buildRequest, defaultControls } from '../../packages/start/lib/scenarioRequest.mjs';
+import { assumptionControls, assumptionDefaults } from '../../packages/toolbox/lib/scenarioControls.mjs';
+import { assumptionSensitivity, failingNames, findBreakingPoint, rankInstitutions } from '../../packages/toolbox/lib/explore.mjs';
+import { buildRequest, defaultControls } from '../../packages/toolbox/lib/scenarioRequest.mjs';
 import { buildModel, release, runScenario, startPackage } from '../../scripts/startHarness.mjs';
 
 const pack = await startPackage();
@@ -88,7 +88,7 @@ test('the four network options each match an independently built run', async () 
     assert.equal(describe(frozen), describe(byHand));
     // None: the sample data with each net interbank position settled in cash by hand and no interbank columns, built as given.
     const rows = (await import('node:fs/promises')).readFile;
-    const text = await rows(new URL('../../packages/start/samples/institutions.csv', import.meta.url), 'utf8');
+    const text = await rows(new URL('../../packages/toolbox/samples/institutions.csv', import.meta.url), 'utf8');
     const lines = text.trim().split('\n');
     const header = lines[0].split(',');
     const column = (name) => header.indexOf(name);

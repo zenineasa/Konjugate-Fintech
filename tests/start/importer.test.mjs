@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
-import importData from '../../packages/start/importers/balanceSheet.mjs';
+import importData from '../../packages/toolbox/importers/balanceSheet.mjs';
 import { fintechRoot, konjugateDir, konjugateModule } from '../../scripts/konjugatePaths.mjs';
 
 const { reconcileEquationBindings, validateEquationLatex } = await import(pathToFileURL(konjugateModule('src/equationModel.mjs')));
@@ -15,7 +15,7 @@ const helpers = {
     reconcileEquationBindings, validateEquationLatex,
     readPackageJson: async (path) => JSON.parse(await readFile(join(fintechRoot, 'packages', 'engine', 'components', path.replace(/^bundles\//, '')), 'utf8'))
 };
-const samples = join(fintechRoot, 'packages', 'start', 'samples');
+const samples = join(fintechRoot, 'packages', 'toolbox', 'samples');
 const sample = async (name) => readFile(join(samples, name), 'utf8');
 const run = (institutions, exposures) => importData({
     files: [{ role: 'institutions', name: 'institutions.csv', text: institutions }, ...(exposures === undefined ? [] : [{ role: 'exposures', name: 'exposures.csv', text: exposures }])],

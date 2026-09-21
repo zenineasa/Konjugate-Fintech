@@ -5,7 +5,7 @@
 // Usage: node scripts/marketStability.mjs [bars] [windowLength]
 import { pathToFileURL } from 'node:url';
 import { konjugateDir, konjugateModule } from './konjugatePaths.mjs';
-import { analyzeWindows, toChanges } from '../packages/markets/lib/market.mjs';
+import { analyzeWindows, toChanges } from '../packages/toolbox/lib/market.mjs';
 
 const { inferWithEngine } = await import(pathToFileURL(konjugateModule('src/engineAdapter.mjs')));
 const bars = Number(process.argv[2] ?? 400);

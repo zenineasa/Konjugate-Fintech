@@ -7,7 +7,7 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { fintechRoot, konjugateDir, konjugateModule } from './konjugatePaths.mjs';
-import { alignSeries, analyzeWindows, parseSeriesFile, preferTogetherDirection, toChanges } from '../packages/markets/lib/market.mjs';
+import { alignSeries, analyzeWindows, parseSeriesFile, preferTogetherDirection, toChanges } from '../packages/toolbox/lib/market.mjs';
 
 const host = await import(pathToFileURL(konjugateModule('src/launcherHost.mjs')));
 const adapter = await import(pathToFileURL(konjugateModule('src/engineAdapter.mjs')));
@@ -34,7 +34,7 @@ const kept = new Set([...analysis.links.filter(worth), ...together.filter((link)
 const edges = analysis.reports[0].edges.filter((edge) => kept.has(`${edge.provenance === 'correlationOnly' ? 'together' : 'lagged'}|${edge.sourceColumn}|${edge.targetColumn}`));
 console.log(`${changes.names.length} series, ${changes.dates.length} bars; kept ${edges.length} links: ${edges.map((edge) => `${edge.sourceColumn}>${edge.targetColumn}(${edge.terms[0].coefficient.toFixed(2)})`).join(', ')}`);
 const files = aligned.names.map((name, index) => ({ role: 'series', name: `${name}.csv`, text: `Date,Close\n${aligned.dates.map((date, row) => `${date},${aligned.columns[index][row]}`).join('\n')}\n`, encoding: 'utf-8' }));
-const addonDirectory = join(fintechRoot, 'packages', 'markets');
+const addonDirectory = join(fintechRoot, 'packages', 'toolbox');
 const built = await host.runImporter({ addonDirectory, importer: { entry: 'importers/marketSeries.mjs' }, files, options: { stage: 'build', edges, selfTerms: analysis.reports[0].selfTerms, fitBars: 250 } });
 const content = JSON.stringify(built.document);
 const configuration = built.document.runConfigurations[0];

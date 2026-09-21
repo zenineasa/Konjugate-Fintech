@@ -1,6 +1,6 @@
 /* Copyright © 2026 Zenin Easa Panthakkalakath */
 
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { defaultUserData, fintechRoot, konjugateModule } from './konjugatePaths.mjs';
@@ -12,6 +12,11 @@ const { installPackageArchive } = await import(pathToFileURL(konjugateModule('sr
 export async function installBuiltPackages(userData = defaultUserData()) {
     const outputDirectory = join(fintechRoot, 'out');
     const installed = [];
+    // Clean up legacy split addons if present so only the single unified toolbox addon is active
+    for (const legacy of ['konjugate.fintech.start', 'konjugate.fintech.markets']) {
+        const legacyDir = join(userData, 'packages', 'addons', legacy);
+        try { await rm(legacyDir, { recursive: true, force: true }); } catch {}
+    }
     for (const name of await readdir(outputDirectory)) {
         const extension = name.match(/\.(kja|kjp)$/)?.[1];
         if (!extension) continue;

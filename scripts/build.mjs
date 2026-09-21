@@ -41,58 +41,32 @@ const target = join(outputDirectory, `${manifest.pluginId}-${manifest.version}.k
 await writeFile(target, archive);
 console.log(`Built ${target}`);
 
-// ---- the Start add-on (a launcher) -------------------------------------------------------------------
-// It carries its own copy of the bundle and node definitions its importer builds models from, taken from
+// ---- the Fintech Toolbox add-on (unified launcher for all fintech tools) --------------------------
+// It carries its own copy of the bundle and node definitions its importers build models from, taken from
 // the plugin's components at build time so the two can never drift.
-const startDirectory = join(fintechRoot, 'packages', 'start');
-const startManifest = JSON.parse(await readFile(join(startDirectory, 'addon.json'), 'utf8'));
-const startFiles = {};
-const collect = async (directory, prefix = '') => {
+const toolboxDirectory = join(fintechRoot, 'packages', 'toolbox');
+const toolboxManifest = JSON.parse(await readFile(join(toolboxDirectory, 'addon.json'), 'utf8'));
+const toolboxFiles = {};
+const collectToolbox = async (directory, prefix = '') => {
     for (const entry of await readdir(join(directory, prefix), { withFileTypes: true })) {
         const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
-        if (entry.isDirectory()) await collect(directory, relative);
-        else if (relative !== 'addon.json') startFiles[relative] = await readFile(join(directory, relative));
+        if (entry.isDirectory()) await collectToolbox(directory, relative);
+        else if (relative !== 'addon.json') toolboxFiles[relative] = await readFile(join(directory, relative));
     }
 };
-await collect(startDirectory);
+await collectToolbox(toolboxDirectory);
 for (const id of ['commercialBank', 'depositorWallets', 'centralBank', 'assetMarket', 'depositRun', 'fireSale', 'interbankLendingScaled', 'interbankDefault', 'emergencyLending']) {
-    startFiles[`bundles/${id}.json`] = await readFile(join(packageDirectory, 'components', `${id}.json`));
+    toolboxFiles[`bundles/${id}.json`] = await readFile(join(packageDirectory, 'components', `${id}.json`));
 }
-const startArchive = createPackageArchive({
+const toolboxArchive = createPackageArchive({
     packageManifest: {
         format: 'konjugate-package', formatVersion: 1, packageType: 'addon',
-        packageId: startManifest.addonId, name: startManifest.name, version: startManifest.version,
+        packageId: toolboxManifest.addonId, name: toolboxManifest.name, version: toolboxManifest.version,
         contents: { manifest: 'addon.json' }
     },
-    contributionManifest: startManifest,
-    files: startFiles
+    contributionManifest: toolboxManifest,
+    files: toolboxFiles
 });
-const startTarget = join(outputDirectory, `${startManifest.addonId}-${startManifest.version}.kja`);
-await writeFile(startTarget, startArchive);
-console.log(`Built ${startTarget}`);
-
-// ---- the Markets add-on (a launcher) -----------------------------------------------------------------
-// Self-contained: its importer, analysis library and sample series are all inside the package.
-const marketsDirectory = join(fintechRoot, 'packages', 'markets');
-const marketsManifest = JSON.parse(await readFile(join(marketsDirectory, 'addon.json'), 'utf8'));
-const marketsFiles = {};
-const collectMarkets = async (prefix = '') => {
-    for (const entry of await readdir(join(marketsDirectory, prefix), { withFileTypes: true })) {
-        const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
-        if (entry.isDirectory()) await collectMarkets(relative);
-        else if (relative !== 'addon.json') marketsFiles[relative] = await readFile(join(marketsDirectory, relative));
-    }
-};
-await collectMarkets();
-const marketsArchive = createPackageArchive({
-    packageManifest: {
-        format: 'konjugate-package', formatVersion: 1, packageType: 'addon',
-        packageId: marketsManifest.addonId, name: marketsManifest.name, version: marketsManifest.version,
-        contents: { manifest: 'addon.json' }
-    },
-    contributionManifest: marketsManifest,
-    files: marketsFiles
-});
-const marketsTarget = join(outputDirectory, `${marketsManifest.addonId}-${marketsManifest.version}.kja`);
-await writeFile(marketsTarget, marketsArchive);
-console.log(`Built ${marketsTarget}`);
+const toolboxTarget = join(outputDirectory, `${toolboxManifest.addonId}-${toolboxManifest.version}.kja`);
+await writeFile(toolboxTarget, toolboxArchive);
+console.log(`Built ${toolboxTarget}`);

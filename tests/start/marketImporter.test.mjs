@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
-import importData from '../../packages/markets/importers/marketSeries.mjs';
+import importData from '../../packages/toolbox/importers/marketSeries.mjs';
 import { konjugateModule } from '../../scripts/konjugatePaths.mjs';
 
 const { applyAssistantProposal } = await import(pathToFileURL(konjugateModule('src/assistantOperations.mjs')));

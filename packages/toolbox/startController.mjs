@@ -4,8 +4,12 @@ import { assumptionControls, assumptionDefaults, advisoryText, checkValue, forma
 import { assumptionSensitivity, failingNames, findBreakingPoint, fragilityText, rankInstitutions, summarizeRun } from './lib/explore.mjs';
 import { buildRequest, checkControls, defaultControls } from './lib/scenarioRequest.mjs';
 
-const api = window.konjugateLauncher;
-const $ = (selector) => document.querySelector(selector);
+export function initStartController({ api, onModelUpdated, onScenarioRun }) {
+    const root = document.querySelector('#view-start');
+    if (!root) return;
+    const $ = (selector) => root.querySelector(selector);
+    const $$ = (selector) => root.querySelectorAll(selector);
+
 const number = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 const percent = (value) => `${Math.round(value)}%`;
 // Failure days are read off a simulation that steps in tenths of a day, and shift by a day or two if the step is made finer, so they are
@@ -31,8 +35,8 @@ const state = {
 // ---- steps ------------------------------------------------------------------------------------------------
 
 function show(step) {
-    for (const panel of document.querySelectorAll('.panel')) panel.classList.toggle('active', panel.id === `panel-${step}`);
-    for (const button of document.querySelectorAll('.step')) {
+    for (const panel of $$('.panel')) panel.classList.toggle('active', panel.id === `panel-${step}`);
+    for (const button of $$('.step')) {
         if (button.dataset.step === step) button.setAttribute('aria-current', 'step');
         else button.removeAttribute('aria-current');
     }
@@ -42,13 +46,13 @@ function show(step) {
 
 function refreshSteps() {
     const steps = { data: true, scenario: Boolean(state.imported), results: Boolean(state.run), explore: Boolean(state.imported), learn: true };
-    for (const button of document.querySelectorAll('.step')) {
+    for (const button of $$('.step')) {
         button.disabled = !steps[button.dataset.step];
         button.classList.toggle('done', (button.dataset.step === 'data' && Boolean(state.imported)) || (button.dataset.step === 'scenario' && Boolean(state.run)));
     }
 }
 
-for (const button of document.querySelectorAll('.step')) button.addEventListener('click', () => show(button.dataset.step));
+for (const button of $$('.step')) button.addEventListener('click', () => show(button.dataset.step));
 document.addEventListener('click', (event) => {
     const page = event.target.closest('[data-page]')?.dataset.page;
     if (page) call(api.openPage(page)).catch((error) => console.error(error));
@@ -369,7 +373,7 @@ function renderChart(summary, data) {
 
 $('#openCanvas').addEventListener('click', async () => {
     try {
-        await call(api.openInCanvas(state.run.scenario.scenarioId));
+        await call(api.openInCanvas(state.run.scenario.scenarioId, { focus: true }));
         $('#exportStatus').innerHTML = '<div class="notice ok">Opened in the main Konjugate window, with the baseline and the scenario as two branches.</div>';
     } catch (error) {
         $('#exportStatus').innerHTML = `<div class="notice error">${escapeHtml(error.message)}</div>`;
@@ -679,7 +683,7 @@ async function withExplore(work) {
     state.busy = true;
     state.cancel = false;
     $('#cancelExplore').hidden = false;
-    for (const button of document.querySelectorAll('.explore-card button, #checkSensitivity, #runScenario')) button.disabled = true;
+    for (const button of $$('.explore-card button, #checkSensitivity, #runScenario')) button.disabled = true;
     try {
         await work((progress) => { $('#exploreStatus').innerHTML = `<div class="running"><div class="spinner"></div><span>${escapeHtml(progress)}</span></div>`; });
         $('#exploreStatus').replaceChildren();
@@ -922,3 +926,4 @@ function renderLearn() {
         $('#importStatus').innerHTML = `<div class="notice error">${escapeHtml(error.message)}</div>`;
     }
 })();
+}

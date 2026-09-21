@@ -32,7 +32,7 @@ const series = {
     'Brent crude': prices(80, crude), Airlines: prices(40, airlines), Gold: prices(2300, gold), 'Gold miners': prices(25, miners),
     'US 10y yield': levels(4.2, yieldChange), Banks: prices(60, banks), 'S&P 500': prices(5400, spx)
 };
-const directory = join(fintechRoot, 'packages', 'markets', 'samples');
+const directory = join(fintechRoot, 'packages', 'toolbox', 'samples');
 await mkdir(directory, { recursive: true });
 for (const [name, values] of Object.entries(series)) {
     const lines = ['Date,Close', ...values.map((value, index) => `${businessDays[index]},${value.toFixed(name === 'US 10y yield' ? 3 : 2)}`)];

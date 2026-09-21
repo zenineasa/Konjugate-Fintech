@@ -5,7 +5,7 @@
 // Usage: node scripts/marketLive.mjs [years] [symbols separated by commas]
 import { pathToFileURL } from 'node:url';
 import { konjugateDir, konjugateModule } from './konjugatePaths.mjs';
-import { alignSeries, analyzeWindows, parseSeriesFile, toChanges } from '../packages/markets/lib/market.mjs';
+import { alignSeries, analyzeWindows, parseSeriesFile, toChanges } from '../packages/toolbox/lib/market.mjs';
 
 const host = await import(pathToFileURL(konjugateModule('src/launcherHost.mjs')));
 const adapter = await import(pathToFileURL(konjugateModule('src/engineAdapter.mjs')));
@@ -33,7 +33,7 @@ for (const length of [60, 120, 250]) {
 
 // A what-if on the real data: keep the steady links from the newest 250-bar stretch, build the model, and shock one series.
 if (process.argv[4]) {
-    const { preferTogetherDirection, inferenceCsv, skeletonThresholdFor } = await import('../packages/markets/lib/market.mjs');
+    const { preferTogetherDirection, inferenceCsv, skeletonThresholdFor } = await import('../packages/toolbox/lib/market.mjs');
     const { join } = await import('node:path');
     const { fintechRoot } = await import('./konjugatePaths.mjs');
     const length = 250;
@@ -45,7 +45,7 @@ if (process.argv[4]) {
     console.log(`\nKept ${edges.length} links: ${edges.map((edge) => `${edge.sourceColumn}>${edge.targetColumn}`).join(', ')}`);
     const files = symbols.map((symbol, index) => ({ role: 'series', name: `${symbol}.csv`, text: `Date,Close\n${aligned.dates.map((date, row) => `${date},${aligned.columns[index][row]}`).join('\n')}\n`, encoding: 'utf-8' }));
     const importer = { entry: 'importers/marketSeries.mjs' };
-    const addonDirectory = join(fintechRoot, 'packages', 'markets');
+    const addonDirectory = join(fintechRoot, 'packages', 'toolbox');
     const built = await host.runImporter({ addonDirectory, importer, files, options: { stage: 'build', edges, selfTerms: result.reports[0].selfTerms } });
     const content = JSON.stringify(built.document);
     const configuration = built.document.runConfigurations[0];

@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { fitSameBar, preferTogetherDirection, yahooChartToCsv, alignSeries, analyzeWindows, inferenceCsv, linkStability, parseSeriesFile, rollingWindows, skeletonThresholdFor, stabilityLabel, toChanges } from '../../packages/markets/lib/market.mjs';
+import { fitSameBar, preferTogetherDirection, yahooChartToCsv, alignSeries, analyzeWindows, inferenceCsv, linkStability, parseSeriesFile, rollingWindows, skeletonThresholdFor, stabilityLabel, toChanges } from '../../packages/toolbox/lib/market.mjs';
 
 const stooq = 'Date,Open,High,Low,Close,Volume\n2026-01-02,10,11,9,10.5,100\n2026-01-05,10.5,12,10,11.0,120\n2026-01-06,11,12,10,10.8,90\n2026-01-07,10.8,11,10,11.4,95\n';
 const fred = 'observation_date,DGS10\n2026-01-02,4.10\n2026-01-05,.\n2026-01-06,4.05\n2026-01-07,4.20\n';

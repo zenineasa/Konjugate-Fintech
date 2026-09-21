@@ -8,7 +8,7 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { fintechRoot, konjugateDir, konjugateModule } from './konjugatePaths.mjs';
-import { alignSeries, inferenceCsv, parseSeriesFile, preferTogetherDirection, skeletonThresholdFor, toChanges } from '../packages/markets/lib/market.mjs';
+import { alignSeries, inferenceCsv, parseSeriesFile, preferTogetherDirection, skeletonThresholdFor, toChanges } from '../packages/toolbox/lib/market.mjs';
 
 const host = await import(pathToFileURL(konjugateModule('src/launcherHost.mjs')));
 const adapter = await import(pathToFileURL(konjugateModule('src/engineAdapter.mjs')));
@@ -27,7 +27,7 @@ const aligned = alignSeries(series);
 if (aligned.dates.length < 250 + horizon * 13) throw new Error(`Only ${aligned.dates.length} shared bars; the backtest needs at least ${250 + horizon * 13}. Use fewer series or a longer history.`);
 console.log(`${aligned.names.length} series, ${aligned.dates.length} bars, ${aligned.dates[0]} to ${aligned.dates.at(-1)}`);
 const files = aligned.names.map((name, index) => ({ role: 'series', name: `${name}.csv`, text: `Date,Close\n${aligned.dates.map((date, row) => `${date},${aligned.columns[index][row]}`).join('\n')}\n`, encoding: 'utf-8' }));
-const addonDirectory = join(fintechRoot, 'packages', 'markets');
+const addonDirectory = join(fintechRoot, 'packages', 'toolbox');
 const importer = { entry: 'importers/marketSeries.mjs' };
 const infer = async (csv, config) => (await adapter.inferWithEngine(csv, config, engineOptions)).report;
 const safe = (name) => name.replace(/[^A-Za-z0-9_.-]+/g, '_');

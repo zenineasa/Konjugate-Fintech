@@ -14,7 +14,7 @@ const adapter = await import(pathToFileURL(konjugateModule('src/engineAdapter.mj
 const engineOptions = { applicationPath: konjugateDir, resourcesPath: '', packaged: false };
 const directory = await mkdtemp(join(tmpdir(), 'startcheck-'));
 try {
-    await cp(join(fintechRoot, 'packages', 'start'), directory, { recursive: true });
+    await cp(join(fintechRoot, 'packages', 'toolbox'), directory, { recursive: true });
     for (const id of ['commercialBank', 'depositorWallets', 'centralBank', 'assetMarket', 'depositRun', 'fireSale', 'interbankLendingScaled', 'interbankDefault', 'emergencyLending']) {
         await cp(join(fintechRoot, 'packages', 'engine', 'components', `${id}.json`), join(directory, 'bundles', `${id}.json`));
     }

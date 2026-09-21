@@ -7,7 +7,7 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { fintechRoot, konjugateDir, konjugateModule } from './konjugatePaths.mjs';
-import { analyzeWindows, toChanges, alignSeries, skeletonThresholdFor, inferenceCsv } from '../packages/markets/lib/market.mjs';
+import { analyzeWindows, toChanges, alignSeries, skeletonThresholdFor, inferenceCsv } from '../packages/toolbox/lib/market.mjs';
 
 const host = await import(pathToFileURL(konjugateModule('src/launcherHost.mjs')));
 const adapter = await import(pathToFileURL(konjugateModule('src/engineAdapter.mjs')));
@@ -31,7 +31,7 @@ const priceFile = (name, returns) => {
 };
 const files = [priceFile('Gold', gold), priceFile('Miners', miners), priceFile('Noise', noise)];
 const importer = { entry: 'importers/marketSeries.mjs' };
-const addonDirectory = join(fintechRoot, 'packages', 'markets');
+const addonDirectory = join(fintechRoot, 'packages', 'toolbox');
 
 const read = await host.runImporter({ addonDirectory, importer, files, options: { stage: 'read' } });
 console.log('read:', JSON.stringify(read.report.summary), read.report.warnings.length, 'warnings');

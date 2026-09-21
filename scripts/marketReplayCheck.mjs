@@ -6,7 +6,7 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { fintechRoot, konjugateDir, konjugateModule } from './konjugatePaths.mjs';
-import { inferenceCsv, skeletonThresholdFor, toChanges } from '../packages/markets/lib/market.mjs';
+import { inferenceCsv, skeletonThresholdFor, toChanges } from '../packages/toolbox/lib/market.mjs';
 
 const host = await import(pathToFileURL(konjugateModule('src/launcherHost.mjs')));
 const adapter = await import(pathToFileURL(konjugateModule('src/engineAdapter.mjs')));
@@ -27,7 +27,7 @@ const file = (name, returns) => {
     return { role: 'series', name: `${name}.csv`, text: `${lines.join('\n')}\n`, encoding: 'utf-8' };
 };
 const files = [file('Gold', gold), file('Miners', miners), file('Noise', noise)];
-const addonDirectory = join(fintechRoot, 'packages', 'markets');
+const addonDirectory = join(fintechRoot, 'packages', 'toolbox');
 const importer = { entry: 'importers/marketSeries.mjs' };
 const full = await host.runImporter({ addonDirectory, importer, files, options: { stage: 'read' } });
 const dates = full.data.dates;
