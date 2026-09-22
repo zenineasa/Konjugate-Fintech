@@ -32,6 +32,22 @@ const state = {
     cancel: false, pinned: null, sensitivity: null, sensitivityKey: '', exploreTab: 'rank'
 };
 
+// The toolbox's manifest also lists Market Dynamics' importer, scenarios and pages, since both tools now ship as one
+// add-on. This tool answers to only its own: the balance-sheet importer, its four scenarios, and its three help
+// pages. Filtering right after the manifest is fetched means every other read of state.manifest.importers/
+// scenarios/pages, anywhere in this file, sees only Interbank Stress's own — nothing downstream has to remember to filter.
+const ownImporterId = 'balanceSheets';
+const ownScenarioIds = ['depositorRun', 'runWithPriceShock', 'runWithCentralBankSupport', 'marketWideRun'];
+const ownPageIds = ['gettingStarted', 'dataFormat', 'assumptions'];
+function scopeToThisTool(manifest) {
+    return {
+        ...manifest,
+        importers: manifest.importers.filter((importer) => importer.importerId === ownImporterId),
+        scenarios: manifest.scenarios.filter((scenario) => ownScenarioIds.includes(scenario.scenarioId)),
+        pages: manifest.pages.filter((page) => ownPageIds.includes(page.pageId))
+    };
+}
+
 // ---- steps ------------------------------------------------------------------------------------------------
 
 function show(step) {
@@ -910,8 +926,9 @@ function renderLearn() {
 
 (async () => {
     try {
-        state.manifest = await call(api.getManifest());
-        [state.importer] = state.manifest.importers;
+        state.manifest = scopeToThisTool(await call(api.getManifest()));
+        state.importer = state.manifest.importers.find((importer) => importer.importerId === ownImporterId);
+        if (!state.importer) throw new Error(`This add-on's manifest has no "${ownImporterId}" importer.`);
         state.files = state.manifest.files;
         state.scenarioId = state.manifest.scenarios[0]?.scenarioId ?? null;
         renderSlots();

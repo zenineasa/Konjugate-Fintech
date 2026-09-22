@@ -379,7 +379,18 @@ try {
 
         await start.click('#toScenarios');
         await start.waitForSelector('#scenarioList .scenario');
-        assert.equal(await start.locator('#scenarioList .scenario').count(), 4);
+        // B2: the toolbox's manifest lists all eight scenarios (this tool's four, and Market Dynamics' four); this
+        // tool must show only its own.
+        assert.equal(await start.locator('#scenarioList .scenario').count(), 4, "Only this tool's own scenarios are listed, not Market Dynamics' too.");
+        assert.deepEqual((await start.locator('#scenarioList .scenario').evaluateAll((nodes) => nodes.map((node) => node.dataset.scenario))).sort(),
+            ['depositorRun', 'marketWideRun', 'runWithCentralBankSupport', 'runWithPriceShock']);
+        // The same scoping keeps the Learn step to this tool's own three help pages, each with its own description.
+        // Both views' #learnCards exist in the DOM at once (only the active view is hidden by CSS), so this must be
+        // scoped to view-start specifically or it would count Market Dynamics' cards too.
+        await start.click('#view-start .step[data-step="learn"]');
+        assert.equal(await start.locator('#view-start #learnCards .card').count(), 3, "Only this tool's own help pages are listed.");
+        assert.equal(await start.locator('#view-start #learnCards .card p:empty').count(), 0, 'Every listed page has its own description.');
+        await start.click('#view-start .step[data-step="scenario"]');
         assert.equal(await start.inputValue('#entityChoice'), 'Alder Bank', 'The stressed institution defaults to the largest.');
         assert.match(await start.textContent('#scenarioDetail'), /withdraw 1\.5% of Alder Bank's deposits/);
         await start.click('#runScenario');
@@ -395,7 +406,7 @@ try {
 
         // Open in the canvas: the main window now holds the model with a baseline and a forked branch.
         await start.click('#openCanvas');
-        await window.waitForFunction(() => document.querySelector('.documentTitle').textContent === 'FintechStart', null, { timeout: 30000 });
+        await window.waitForFunction(() => document.querySelector('.documentTitle').textContent === 'FintechToolbox', null, { timeout: 30000 });
         await window.waitForFunction(() => document.querySelectorAll('#branchChips > *').length === 2, null, { timeout: 30000 });
         assert.match(await window.textContent('.modelStatus'), /11 nodes/);
 
@@ -463,10 +474,10 @@ try {
         await start.fill('#n-haircut', '150');
         await start.waitForSelector('#controlProblems .notice.error');
         assert.match(await start.textContent('#controlProblems'), /Forced-sale discount cannot be above 100%/);
-        assert.equal(await start.locator('#runScenario').isDisabled(), true);
+        assert.equal(await start.locator('#view-start #runScenario').isDisabled(), true);
         await start.fill('#n-haircut', '85');
         assert.equal(await start.locator('#controlProblems .notice').count(), 0);
-        assert.equal(await start.locator('#runScenario').isDisabled(), false, 'Outside the advisory band is advice, not a refusal.');
+        assert.equal(await start.locator('#view-start #runScenario').isDisabled(), false, 'Outside the advisory band is advice, not a refusal.');
         assert.match(await start.textContent('[data-detail="haircut"]'), /Outside the range this model has been explored over/);
 
         // A changed value is marked with its default, and can be reset on its own.
@@ -602,6 +613,8 @@ try {
             if (!markets) await new Promise((resolve) => setTimeout(resolve, 100));
         }
         assert.ok(markets, 'The Fintech toolbox window did not open.');
+        const marketsPageErrors = [];
+        markets.on('pageerror', (error) => marketsPageErrors.push(error.message));
         await markets.click('[data-launch="markets"]');
         await markets.waitForSelector('.tab[data-tab="files"]');
         assert.equal(await markets.locator('#readData').isDisabled(), true, 'At least two series are needed before anything can be read.');
@@ -708,11 +721,20 @@ try {
         await markets.click('#rebuildNow');
         await markets.waitForFunction(() => /from 1 changed file/.test(document.querySelector('#refreshNote').textContent), null, { timeout: 120000 });
         assert.equal(await markets.locator('#refreshCard tbody tr').count(), 2, 'Each look is recorded, newest first.');
-        await markets.click('.step[data-step="data"]');
+        // The step nav's "data" step exists in both views, so this must be scoped to view-markets or it would hit
+        // view-start's hidden copy and hang.
+        await markets.click('#view-markets .step[data-step="data"]');
 
-        // The sample series read cleanly, and the analysis finds the links that were planted in them.
-        await markets.click('#useSample');
+        // B1: this tool's manifest also lists the balance-sheet importer, and it must reach for its own (market-series)
+        // one, not whichever comes first. Taking the wrong one made "Use the sample series" import balance sheets and
+        // then crash reading .length off the market-series-shaped data it never got. #useSample is also a shared id
+        // between the two views, so this must be scoped too.
+        await markets.click('#view-markets #useSample');
         await markets.waitForFunction(() => document.querySelectorAll('#previewGrid .preview').length === 7, null, { timeout: 30000 });
+        assert.deepEqual(marketsPageErrors, [], `"Use the sample series" raised no error (${marketsPageErrors.join(' | ')}).`);
+        assert.deepEqual((await markets.locator('#previewGrid .preview .n').allTextContents()).sort(),
+            ['Airlines', 'Banks', 'Brent crude', 'Gold', 'Gold miners', 'S&P 500', 'US 10y yield'],
+            "The market series' own sample names are shown, not balance-sheet institutions.");
         await markets.click('#toLinks');
         await markets.click('#findLinks');
         await markets.waitForSelector('#linkTable', { timeout: 120000 });
@@ -734,10 +756,21 @@ try {
         await markets.click('#buildModel');
         await markets.waitForSelector('#buildStatus .notice.ok', { timeout: 60000 });
         await markets.click('#toWhatIf');
+        // B2, the same check from the other side: this tool must show only its own four scenarios, not Interbank
+        // Stress's four too.
+        assert.equal(await markets.locator('#scenarioList .scenario').count(), 4, "Only this tool's own scenarios are listed, not Interbank Stress's too.");
+        assert.deepEqual((await markets.locator('#scenarioList .scenario').evaluateAll((nodes) => nodes.map((node) => node.dataset.scenario))).sort(),
+            ['fall', 'project', 'replay', 'rise']);
+        // Both views' #learnCards exist in the DOM at once (only the active view is hidden by CSS), so this must be
+        // scoped to view-markets specifically or it would count Interbank Stress's cards too.
+        await markets.click('#view-markets .step[data-step="learn"]');
+        assert.equal(await markets.locator('#view-markets #learnCards .card').count(), 3, "Only this tool's own help pages are listed.");
+        assert.equal(await markets.locator('#view-markets #learnCards .card p:empty').count(), 0, 'Every listed page has its own description.');
+        await markets.click('#view-markets .step[data-step="whatif"]');
         await markets.selectOption('#entityChoice', 'Gold');
-        await markets.click('#runScenario');
+        await markets.click('#view-markets #runScenario');
         await markets.waitForSelector('#panel-results.active #tiles .tile', { timeout: 120000 });
-        const headline = await markets.textContent('#headline');
+        const headline = await markets.textContent('#view-markets #headline');
         console.log(`Markets headline: ${headline}`);
         assert.match(headline, /Gold ends −/);
         assert.match(headline, /the biggest is Gold miners at −/);
@@ -746,14 +779,17 @@ try {
         assert.match(tableRows.find((row) => row.startsWith('Banks')), /[+−]?0\.0\d%/, 'A series the shock does not reach barely moves.');
         assert.ok(await markets.locator('#chart svg path').count() >= 2, 'The chart draws a line for each series the shock reaches.');
 
-        await markets.click('#openCanvas');
-        await window.waitForFunction(() => document.querySelector('.documentTitle').textContent === 'FintechMarkets', null, { timeout: 30000 });
+        // #runScenario, #headline and #openCanvas are all shared ids between the two views, so each must be scoped
+        // to view-markets specifically.
+        await markets.click('#view-markets #openCanvas');
+        await window.waitForFunction(() => document.querySelector('.documentTitle').textContent === 'FintechToolbox', null, { timeout: 30000 });
         await window.waitForFunction(() => document.querySelectorAll('#branchChips > *').length === 2, null, { timeout: 30000 });
         assert.match(await window.textContent('.modelStatus'), /8 nodes/);
         console.log('Markets window: read, links, model, what-if and canvas all work.');
 
         // Hold the last month back and replay what really happened: the model is compared with the actual outcome.
-        await markets.click('.step[data-step="data"]');
+        // The "data" step is shared between the two views' step navs, so this must be scoped too.
+        await markets.click('#view-markets .step[data-step="data"]');
         await markets.click('#rangeQuick [data-quick="hold1"]');
         assert.match(await markets.textContent('#rangeCard'), /held back/);
         await markets.click('#toLinks');
@@ -764,26 +800,28 @@ try {
         await markets.click('#toWhatIf');
         await markets.click('#scenarioList [data-scenario="replay"]');
         assert.equal(await markets.locator('[data-driver="Gold"]').isChecked(), true, 'A series with a kept link going out of it is replayed by default.');
-        await markets.click('#runScenario');
+        await markets.click('#view-markets #runScenario');
         await markets.waitForSelector('#panel-results.active #tiles .tile', { timeout: 120000 });
-        const replayHeadline = await markets.textContent('#headline');
+        const replayHeadline = await markets.textContent('#view-markets #headline');
         console.log(`Markets replay: ${replayHeadline}`);
         assert.match(replayHeadline, /With the real moves of .*Gold.* replayed for \d+ bars/);
-        assert.match(await markets.textContent('#resultTable'), /held to its real path/);
-        assert.match(await markets.textContent('#resultTable'), /Market guess/, 'A market guess is offered beside no change when a market series is present.');
+        // #resultTable is a shared id; the bare (whole-element) reads below must be scoped, unlike the
+        // "#resultTable tbody tr" locator counts above, which are safe because view-start's table stays empty.
+        assert.match(await markets.textContent('#view-markets #resultTable'), /held to its real path/);
+        assert.match(await markets.textContent('#view-markets #resultTable'), /Market guess/, 'A market guess is offered beside no change when a market series is present.');
         assert.ok(await markets.locator('#chart svg path[stroke-dasharray]').count() >= 1, 'What really happened is drawn dashed beside the model.');
 
         // A projection with the range that past volatility allows, compared with the bars held back.
-        await markets.click('#anotherScenario');
+        await markets.click('#view-markets #anotherScenario');
         await markets.click('#scenarioList [data-scenario="project"]');
-        await markets.click('#runScenario');
+        await markets.click('#view-markets #runScenario');
         await markets.waitForSelector('#panel-results.active #projectPick:not(.hidden)', { timeout: 120000 });
-        const projectHeadline = await markets.textContent('#headline');
+        const projectHeadline = await markets.textContent('#view-markets #headline');
         console.log(`Markets projection: ${projectHeadline}`);
         assert.match(projectHeadline, /series ended inside the 68% range/);
         assert.ok(await markets.locator('#chart svg path[fill-opacity]').count() >= 2, 'The 68% and 95% ranges are shaded.');
         await markets.selectOption('#projectSeries', 'Gold miners');
-        assert.match(await markets.textContent('#legend'), /Gold miners: the model/);
+        assert.match(await markets.textContent('#view-markets #legend'), /Gold miners: the model/);
     });
     console.log('Fintech interaction checks passed.');
 } finally {

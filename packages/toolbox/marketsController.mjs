@@ -39,6 +39,22 @@ const state = {
     busy: false, history: [], refresh: { minutes: 0, timer: null }, myGroups: [], marketSeries: ''
 };
 
+// The toolbox's manifest also lists Interbank Stress's importer, scenarios and pages, since both tools now ship as
+// one add-on. This tool answers to only its own: the market-series importer, its four scenarios, and its three help
+// pages. Filtering right after the manifest is fetched means every other read of state.manifest.importers/
+// scenarios/pages, anywhere in this file, sees only Market Dynamics' own — nothing downstream has to remember to filter.
+const ownImporterId = 'marketSeries';
+const ownScenarioIds = ['fall', 'rise', 'project', 'replay'];
+const ownPageIds = ['marketsGettingStarted', 'marketsDataFormat', 'marketsAssumptions'];
+function scopeToThisTool(manifest) {
+    return {
+        ...manifest,
+        importers: manifest.importers.filter((importer) => importer.importerId === ownImporterId),
+        scenarios: manifest.scenarios.filter((scenario) => ownScenarioIds.includes(scenario.scenarioId)),
+        pages: manifest.pages.filter((page) => ownPageIds.includes(page.pageId))
+    };
+}
+
 // ---- steps and tabs ---------------------------------------------------------------------------------------
 
 function show(step) {
@@ -1210,10 +1226,12 @@ $('#anotherScenario').addEventListener('click', () => { renderScenarios(); show(
 
 // ---- step 5: learn ----------------------------------------------------------------------------------------
 
+// Keyed by this tool's own page ids (help/marketsGettingStarted.html and so on), which is what the manifest now
+// declares them as, so they no longer collide with Interbank Stress's identically-shaped pages.
 const blurbs = {
-    gettingStarted: 'A five-minute walk-through: find series, check them, find links, look ahead, compare.',
-    dataFormat: 'What the files need, how dates and decimals are read, what is repaired or left out, and how far back each source goes.',
-    assumptions: 'What links mean, why they come and go, how the what-if and the replay are built, and what they have not been tested against.'
+    marketsGettingStarted: 'A five-minute walk-through: find series, check them, find links, look ahead, compare.',
+    marketsDataFormat: 'What the files need, how dates and decimals are read, what is repaired or left out, and how far back each source goes.',
+    marketsAssumptions: 'What links mean, why they come and go, how the what-if and the replay are built, and what they have not been tested against.'
 };
 
 function renderLearn() {
@@ -1224,8 +1242,9 @@ function renderLearn() {
 
 (async () => {
     try {
-        state.manifest = await call(api.getManifest());
-        [state.importer] = state.manifest.importers;
+        state.manifest = scopeToThisTool(await call(api.getManifest()));
+        state.importer = state.manifest.importers.find((importer) => importer.importerId === ownImporterId);
+        if (!state.importer) throw new Error(`This add-on's manifest has no "${ownImporterId}" importer.`);
         state.files = state.manifest.files.series ?? [];
         state.scenarioId = state.manifest.scenarios[0]?.scenarioId ?? null;
         $('#fetchFrom').value = daysAgo(730);
