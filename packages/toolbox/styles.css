@@ -552,7 +552,9 @@ input:focus-visible {
    MAIN CONTENT AREA
    ============================================================ */
 
-main { overflow-y: auto; padding: 32px 40px 56px; scroll-behavior: smooth; }
+/* Bottom padding is generous enough that a sticky actions bar (see #panel-scenario .actions below) has room to
+   rest below the fold on a short window instead of already overlapping the last card on first paint. */
+main { overflow-y: auto; padding: 32px 40px 96px; scroll-behavior: smooth; }
 
 .panel { max-width: 920px; margin: 0 auto; display: none; }
 .panel.active { display: block; }
@@ -690,7 +692,9 @@ tr.faded td { opacity: 0.5; }
    SCENARIO LIST
    ============================================================ */
 
-.scenarios { display: grid; gap: 10px; }
+/* Margin-bottom gives the sticky actions bar (#panel-scenario .actions) more natural-flow height to clear before
+   it needs to stick, so on a short window (e.g. 1180x800) it doesn't already overlap the last card on first paint. */
+.scenarios { display: grid; gap: 10px; margin-bottom: 16px; }
 .scenario {
     display: block;
     width: 100%;

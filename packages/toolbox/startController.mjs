@@ -154,6 +154,7 @@ async function checkData() {
             Object.assign(state, { settings: {}, network: 'auto', appliedKey: '{}', controlsKey: '', sensitivity: null, pinned: null });
             state.run = null;
             state.entity = null;
+            onModelUpdated?.('start');
         } else state.imported = null;
         renderImportResult(result.report, result.imported);
     } catch (error) {
@@ -267,6 +268,7 @@ $('#runScenario').addEventListener('click', async () => {
         await ensureModel(options);
         const data = await call(api.runScenario(scenario.scenarioId, { entity: scenario.choose ? state.entity : null, signals: runSignals, runTime: request.runTime, overrides: request.overrides }));
         state.run = { scenario, data, summary: summarize(data), request, options, changed: changedList(request) };
+        onScenarioRun?.('start', scenario.scenarioId);
         $('#runStatus').replaceChildren();
         renderResults();
         refreshSteps();

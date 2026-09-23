@@ -404,6 +404,12 @@ try {
         // The stressed institution loses equity and is the hardest hit.
         assert.match(await start.textContent('#tiles'), /Alder Bank/);
 
+        // B3: "Canvas Live Sync" claims every import and run builds the canvas model in the background,
+        // without needing "Open in Konjugate to inspect" first. Confirm the main window already reflects
+        // this run, before #openCanvas is ever clicked.
+        await window.waitForFunction(() => /11 nodes/.test(document.querySelector('.modelStatus')?.textContent ?? ''), null, { timeout: 15000 });
+        assert.equal(await window.locator('#branchChips > *').count(), 2, 'Canvas Live Sync should already show the baseline and this run\'s branch.');
+
         // Open in the canvas: the main window now holds the model with a baseline and a forked branch.
         await start.click('#openCanvas');
         await window.waitForFunction(() => document.querySelector('.documentTitle').textContent === 'FintechToolbox', null, { timeout: 30000 });
@@ -778,6 +784,11 @@ try {
         const tableRows = await markets.locator('#resultTable tbody tr').allTextContents();
         assert.match(tableRows.find((row) => row.startsWith('Banks')), /[+−]?0\.0\d%/, 'A series the shock does not reach barely moves.');
         assert.ok(await markets.locator('#chart svg path').count() >= 2, 'The chart draws a line for each series the shock reaches.');
+
+        // B3, the same check from Market Dynamics' side: the main window already reflects this run, before
+        // #openCanvas is ever clicked.
+        await window.waitForFunction(() => /8 nodes/.test(document.querySelector('.modelStatus')?.textContent ?? ''), null, { timeout: 15000 });
+        assert.equal(await window.locator('#branchChips > *').count(), 2, 'Canvas Live Sync should already show the baseline and this run\'s branch.');
 
         // #runScenario, #headline and #openCanvas are all shared ids between the two views, so each must be scoped
         // to view-markets specifically.

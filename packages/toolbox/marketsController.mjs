@@ -766,6 +766,7 @@ async function buildModel() {
         state.built = { report: result.report, entities: result.entities };
         state.run = null;
         state.drivers = defaultDrivers();
+        onModelUpdated?.('markets');
         if (!state.built.entities.includes(state.marketSeries)) state.marketSeries = state.built.entities.find((name) => /S&P|GSPC|SPY\b|S&amp;P/i.test(name)) ?? '';
         $('#buildStatus').innerHTML = notice('ok', `<strong>Model built</strong> from ${plural(result.report.summary.links, 'link')}, as of ${escapeHtml(dates[state.range.to])}.${result.report.warnings.length ? `<ul>${result.report.warnings.map((item) => `<li>${escapeHtml(item.message)}</li>`).join('')}</ul>` : ''} <button class="button link" type="button" id="toWhatIf">Look ahead</button>`);
         $('#toWhatIf').addEventListener('click', () => { renderScenarios(); show('whatif'); });
@@ -964,6 +965,7 @@ $('#runScenario').addEventListener('click', async () => {
         }
         const data = await call(api.runScenario(scenario.scenarioId, options));
         state.run = { scenario, data, replay, project, kind: replay ? 'replay' : project ? 'project' : 'shock', entity: scenario.choose ? state.entity : null, horizon: state.horizon, drivers: replay ? [...state.drivers] : [], actual, market: replay && state.marketSeries && isReturn(state.marketSeries) ? state.marketSeries : '' };
+        onScenarioRun?.('markets', scenario.scenarioId);
         $('#runStatus').replaceChildren();
         renderResults();
         refreshSteps();
