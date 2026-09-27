@@ -129,7 +129,8 @@
             ],
             "description": "Three banks, a depositor run, fire sales and defaults. Fork it mid-crisis to compare a central-bank response with a fresh shock.",
             "entry": "examples/interbankLiquidityRun.kjt",
-            "guide": "examples/interbankLiquidityRun.md"
+            "guide": "examples/interbankLiquidityRun.md",
+            "thumbnail": "examples/interbankLiquidityRun.png"
         },
         {
             "kind": "example",
@@ -141,7 +142,8 @@
             ],
             "description": "A price shock liquidates lending vaults whose collateral is priced from a thin pool, and the liquidation sales cascade to the next vault.",
             "entry": "examples/defiLiquidationCascade.kjt",
-            "guide": "examples/defiLiquidationCascade.md"
+            "guide": "examples/defiLiquidationCascade.md",
+            "thumbnail": "examples/defiLiquidationCascade.png"
         }
     ],
     "permissions": []

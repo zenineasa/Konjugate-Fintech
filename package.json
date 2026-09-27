@@ -9,6 +9,7 @@
     "build": "node scripts/build.mjs",
     "build:models": "node scripts/buildModels.mjs",
     "install:dev": "node scripts/build.mjs && node scripts/installDev.mjs",
+    "generate:example-thumbnails": "node scripts/build.mjs && node scripts/generateExampleThumbnails.mjs",
     "test": "node --test tests/unit/*.test.mjs tests/start/*.test.mjs",
     "test:interaction": "node scripts/build.mjs && node tests/interaction/run.mjs",
     "test:calibration": "node tests/calibration/run.mjs",
