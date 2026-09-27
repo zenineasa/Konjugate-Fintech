@@ -1,8 +1,14 @@
 # Konjugate Fintech Toolbox
 
-A closed-source, commercial extension for [Konjugate](https://github.com/zenineasa/Konjugate) — an open-source, graph-native simulation engine — bringing that engine's state-and-flow modeling to quantitative finance, decentralized finance (DeFi), systemic risk stress-testing, and macroeconomics.
+An open-source (AGPLv3), commercially-licensable extension for [Konjugate](https://github.com/zenineasa/Konjugate) — an open-source, graph-native simulation engine — bringing that engine's state-and-flow modeling to quantitative finance, decentralized finance (DeFi), systemic risk stress-testing, and macroeconomics.
 
-Revenue from this toolbox funds full-time development of Konjugate's open-source core. See [Sustainability model](#sustainability-model) below for how that's structured.
+Revenue from commercial licenses funds full-time development of Konjugate's open-source core. See [Sustainability model](#sustainability-model) below for how that's structured, and [License](#license) / [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) for the terms themselves.
+
+## See it in action
+
+[![Konjugate Fintech: A Transparent Model for Bank Runs, Market and DeFi Risk Analysis](https://img.youtube.com/vi/l-rHUY-JdoY/maxresdefault.jpg)](https://www.youtube.com/watch?v=l-rHUY-JdoY)
+
+*Konjugate Fintech: A Transparent Model for Bank Runs, Market and DeFi Risk Analysis* — click to watch on YouTube.
 
 ## Status
 
@@ -95,7 +101,9 @@ A secondary, higher-effort capability: ingest a multi-asset basket from a market
 
 ## Target customers
 
-| Segment | Use case | Offer |
+Anyone can use this toolbox under AGPLv3 today, free of charge, including institutions — the table below is about the *commercial* license: for organizations that need to keep their own modifications or deployments closed rather than publish them under AGPLv3, that's what they'd be buying. See [License](#license) for how the two fit together.
+
+| Segment | Use case | Commercial offer |
 |---|---|---|
 | Hedge funds & prop desks | Cross-market causal forecasting, HFT market-making simulation, stat arb | Per-seat developer license, C++ SDK, priority support |
 | Commercial & investment banks | Basel III stress-testing, interbank contagion modeling, counterparty risk | Enterprise site license, custom risk connectors, SLA |
@@ -106,17 +114,23 @@ No beachhead has been chosen among these yet — that's an open decision, not an
 
 ## Sustainability model
 
-Konjugate's core stays MPL-2.0: free, transparent, and open for academic, engineering, and student use. This toolbox is the commercial counterpart — sold to institutions, funding full-time core engineering, GPU/CUDA solver development, and documentation. MPL-2.0's file-level copyleft is what makes this legally clean: only *modifications to core files* must stay open; independent files, packages, and processes that communicate with the core through stable interfaces (this toolbox's `.kjp`/`.kja`/`.kjt`) are a "Larger Work" and can be proprietary. Every integration point here — the plugin's C ABI boundary, the add-on's `contextBridge` boundary, the plugin-contributed component templates — was chosen specifically to keep that boundary clean without needing a single core-file edit.
+Konjugate's core stays MPL-2.0: free, transparent, and open for academic, engineering, and student use, and permissive enough that anyone can build their own proprietary toolbox on top of it — that's a deliberate choice, not an oversight. This toolbox is dual-licensed: free for everyone under [AGPLv3](LICENSE), with a [commercial license](COMMERCIAL-LICENSE.md) sold to institutions that need to keep their own modifications or deployments closed. That commercial revenue funds full-time core engineering, GPU/CUDA solver development, and documentation — the AGPLv3 grant funds nothing directly, but it guarantees that anyone who *does* build on this toolbox, rather than paying for the right to keep it closed, keeps their own work just as open, including if they run it as a network service.
+
+The two licenses sit on either side of the same MPL-2.0 boundary this project has always relied on: MPL-2.0's file-level copyleft means only *modifications to core files* must stay open, while independent files, packages, and processes that communicate with the core through stable interfaces (this toolbox's `.kjp`/`.kja`/`.kjt`) form a "Larger Work" that can carry any license — proprietary, as it was before, or AGPLv3, as the public release is now. Every integration point here — the plugin's C ABI boundary, the add-on's `contextBridge` boundary, the plugin-contributed component templates — was chosen specifically to keep that boundary clean without needing a single core-file edit, in either direction: it's what let this toolbox be proprietary before, and it's equally what keeps AGPLv3's obligations from reaching back into Konjugate's MPL-2.0 core now.
+
+Dual licensing like this only works because copyright in this toolbox is unified — see [Development](#development) before assuming outside contributions are accepted the same way core's are.
 
 ## Repository relationship to Konjugate
 
-This is an independent repository, not a subdirectory or submodule *of* Konjugate — the dependency runs the other way: this repo will reference the public [`Konjugate`](https://github.com/zenineasa/Konjugate) repo (via a git submodule or pinned release tag) to build its native plugin against the public engine ABI. Keeping the repos separate means proprietary code here can never end up in the public repo's git history by accident.
+This is an independent repository, not a subdirectory or submodule *of* Konjugate — the dependency runs the other way: this repo will reference the public [`Konjugate`](https://github.com/zenineasa/Konjugate) repo (via a git submodule or pinned release tag) to build its native plugin against the public engine ABI. Keeping the repos separate keeps this toolbox's own history and licensing distinct from core's, regardless of which license governs either one at a given time.
 
 At runtime, none of this lives "inside" Konjugate's own source either — the `.kja`/`.kjp` packages built here get *installed* into a user's `<userData>/packages/addons/...` and `.../packages/plugins/...`, the same way any third-party Konjugate extension would be. For local development, that means: build here, install the output into a local Konjugate's `userData/packages/` directory, and test against a real running instance — no special integration needed on Konjugate's side.
 
 ## Development
 
 The two repositories are expected to sit side by side (`../konjugate`, or point `KONJUGATE_DIR` at a checkout that has been built with `npm run build:engine`). Everything below uses Konjugate's own package, validation and project-file code, so what passes here is what the real app accepts.
+
+**On contributions:** this toolbox's dual licensing (see [Sustainability model](#sustainability-model)) depends on the copyright being unified enough to relicense commercially, which today it is — this repository is solely authored. Any outside contribution accepted in the future will need a contributor agreement granting that same relicensing right; until that's in place, unsolicited pull requests may not be accepted even if the change itself is good, purely to keep the licensing story clean.
 
 - `npm run build` — builds the plugin (`packages/engine`) into `out/konjugate.fintech.engine-<version>.kjp` and the unified toolbox add-on (`packages/toolbox`) into `out/konjugate.fintech.toolbox-<version>.kja`.
 - `npm run install:dev` — builds, then installs into your local Konjugate's `userData/packages` (override with `KONJUGATE_USER_DATA`).
@@ -150,7 +164,12 @@ The two repositories are expected to sit side by side (`../konjugate`, or point 
 
 ## License
 
-Proprietary. All rights reserved. Not licensed under Konjugate's MPL-2.0 — see [Sustainability model](#sustainability-model) for why that split is intentional and legally deliberate.
+Dual-licensed, not licensed under Konjugate's MPL-2.0 — see [Sustainability model](#sustainability-model) for why that split is intentional and legally deliberate:
+
+- **[GNU Affero General Public License v3.0](LICENSE) (AGPLv3)** — free for anyone, including commercial and institutional use, provided that modified versions (including those only ever run as a network service, never distributed as such) are made available under AGPLv3 too.
+- **[Commercial license](COMMERCIAL-LICENSE.md)** — for organizations that need to keep their own modifications or deployments closed instead. See that document for what it covers and how to get one.
+
+If neither describes your situation, treat AGPLv3 as the default: it's the license actually granted unless a separate commercial agreement says otherwise.
 
 ---
 
