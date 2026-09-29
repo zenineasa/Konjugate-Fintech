@@ -1,18 +1,18 @@
 /* Copyright © 2026 Zenin Easa Panthakkalakath */
 
-// Checks every .kjp/.kja in out/ against Konjugate core's namespaces.json and fails (non-zero
-// exit) unless all of them come back "verified" -- a CI self-check that a signing step actually
-// produced something the registry agrees with, not a runtime gate (see docs/namespaces.md: nothing in
-// Konjugate itself refuses to install an unsigned or unverified package; this script only guards
-// this repo's own release pipeline against shipping a signature that doesn't check out).
+// Checks every .kjp/.kja in out/ against Konjugate core's registry/ and fails (non-zero exit)
+// unless all of them come back "verified" -- a CI self-check that a signing step actually
+// produced something the registry agrees with, not a runtime gate (see docs/registry.md: nothing
+// in Konjugate itself refuses to install an unsigned or unverified package; this script only
+// guards this repo's own release pipeline against shipping a signature that doesn't check out).
 
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { fintechRoot, konjugateModule } from './konjugatePaths.mjs';
 
-const { verifyPackageArchive } = await import(pathToFileURL(konjugateModule('src/packageArchive.mjs')));
-const namespaces = JSON.parse(await readFile(konjugateModule('namespaces.json'), 'utf8'));
+const { loadNamespaceRegistry, verifyPackageArchive } = await import(pathToFileURL(konjugateModule('src/packageArchive.mjs')));
+const namespaces = await loadNamespaceRegistry(konjugateModule('registry'));
 
 const outputDirectory = join(fintechRoot, 'out');
 const targets = (await readdir(outputDirectory)).filter((name) => name.endsWith('.kjp') || name.endsWith('.kja'));
@@ -25,5 +25,5 @@ for (const name of targets) {
     console.log(`${name}: ${result.status}${result.reason ? ` (${result.reason})` : ''}`);
     if (result.status !== 'verified') failed = true;
 }
-if (failed) throw new Error('Not every package verified. See docs/namespaces.md if this is unexpected.');
+if (failed) throw new Error('Not every package verified. See docs/registry.md if this is unexpected.');
 console.log('All packages verified.');

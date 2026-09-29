@@ -53,7 +53,7 @@ jobs:
               working-directory: konjugate-fintech
               run: npm run build
             # Deliberately unsigned: signing is release.yml's job, gated to an actual version tag,
-            # not something every push/PR build should do (see docs/namespaces.md in core -- an
+            # not something every push/PR build should do (see docs/registry.md in core -- an
             # unsigned package here is no different from one built any other way, so there's
             # nothing this verification build loses by skipping it).
             - name: Package the build output as one zip

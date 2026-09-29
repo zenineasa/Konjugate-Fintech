@@ -45,7 +45,7 @@ jobs:
               env:
                   FINTECH_SIGNING_PRIVATE_KEY: ${{ secrets.FINTECH_SIGNING_PRIVATE_KEY }}
               run: node scripts/signPackage.mjs
-            - name: Verify the signatures against namespaces.json
+            - name: Verify the signatures against the registry
               working-directory: konjugate-fintech
               run: node scripts/verifySignedPackages.mjs
             - name: Package the build output as one zip
@@ -81,4 +81,4 @@ jobs:
                   files: dist/*
                   generate_release_notes: true
                   body: |
-                      > **Verifying this download:** every package in this zip is signed under the `konjugate.fintech` namespace prefix — see [docs/namespaces.md](https://github.com/zenineasa/Konjugate/blob/main/docs/namespaces.md) in the Konjugate core repo for what that means and how `verifyPackageArchive` checks it. This is a trust signal, not a requirement: installing an unsigned or unverified package works exactly the same.
+                      > **Verifying this download:** every package in this zip is signed under the `konjugate.fintech` namespace prefix — see [docs/registry.md](https://github.com/zenineasa/Konjugate/blob/main/docs/registry.md) in the Konjugate core repo for what that means and how `verifyPackageArchive` checks it. This is a trust signal, not a requirement: installing an unsigned or unverified package works exactly the same.
