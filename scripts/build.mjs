@@ -11,7 +11,10 @@ const { createPackageArchive } = await import(pathToFileURL(konjugateModule('src
 const packageDirectory = join(fintechRoot, 'packages', 'engine');
 const outputDirectory = join(fintechRoot, 'out');
 
-const manifest = JSON.parse(await readFile(join(packageDirectory, 'plugin.json'), 'utf8'));
+// package.json is the single source of the version, so release tags always match the packages.
+const { version } = JSON.parse(await readFile(join(fintechRoot, 'package.json'), 'utf8'));
+
+const manifest = { ...JSON.parse(await readFile(join(packageDirectory, 'plugin.json'), 'utf8')), version };
 const files = {};
 // Example models are generated from scripts/buildModels.mjs into out/models and shipped inside the
 // package, next to a hand-written guide from guides/, so the package always carries the model the
@@ -49,7 +52,7 @@ console.log(`Built ${target}`);
 // It carries its own copy of the bundle and node definitions its importers build models from, taken from
 // the plugin's components at build time so the two can never drift.
 const toolboxDirectory = join(fintechRoot, 'packages', 'toolbox');
-const toolboxManifest = JSON.parse(await readFile(join(toolboxDirectory, 'addon.json'), 'utf8'));
+const toolboxManifest = { ...JSON.parse(await readFile(join(toolboxDirectory, 'addon.json'), 'utf8')), version };
 const toolboxFiles = {};
 const collectToolbox = async (directory, prefix = '') => {
     for (const entry of await readdir(join(directory, prefix), { withFileTypes: true })) {
