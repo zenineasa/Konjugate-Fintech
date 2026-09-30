@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Proprietary fintech toolbox for Konjugate.",
+  "license": "AGPL-3.0-only OR LicenseRef-Commercial",
   "copyright": "Copyright \u00a9 2026 Zenin Easa Panthakkalakath",
   "scripts": {
     "build": "node scripts/build.mjs",

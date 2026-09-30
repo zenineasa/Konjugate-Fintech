@@ -171,6 +171,8 @@ Dual-licensed, not licensed under Konjugate's MPL-2.0 — see [Sustainability mo
 
 If neither describes your situation, treat AGPLv3 as the default: it's the license actually granted unless a separate commercial agreement says otherwise.
 
+The AGPL grant is for version 3 only, not any later version. In `package.json` this is the SPDX expression `AGPL-3.0-only OR LicenseRef-Commercial`, the second being the commercial license above.
+
 ---
 
 Copyright © 2026 Zenin Easa Panthakkalakath
