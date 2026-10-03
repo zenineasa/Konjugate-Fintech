@@ -4,11 +4,7 @@ An open-source (AGPLv3), commercially-licensable extension for [Konjugate](https
 
 Revenue from commercial licenses funds full-time development of Konjugate's open-source core. See [Sustainability model](#sustainability-model) below for how that's structured, and [License](#license) / [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) for the terms themselves.
 
-## See it in action
-
-[![Konjugate Fintech: A Transparent Model for Bank Runs, Market and DeFi Risk Analysis](https://img.youtube.com/vi/l-rHUY-JdoY/maxresdefault.jpg)](https://www.youtube.com/watch?v=l-rHUY-JdoY)
-
-*Konjugate Fintech: A Transparent Model for Bank Runs, Market and DeFi Risk Analysis* — click to watch on YouTube.
+[![Konjugate Fintech: A Transparent Model for Bank Runs, Market and DeFi Risk Analysis](assets/ForReadme/youtubeVideoThumbnail.png)](https://www.youtube.com/watch?v=l-rHUY-JdoY)
 
 ## Status
 
