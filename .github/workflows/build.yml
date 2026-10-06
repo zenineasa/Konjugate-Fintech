@@ -2,8 +2,9 @@
 
 name: Build
 
-# Cheap, broad verification -- every push and PR gets an unsigned build, proving the code and
-# packaging still work. Mirrors Konjugate core's crossPlatform.yml/release.yml split: this is the
+# An unsigned build, run only by hand (Actions > Build > Run workflow), proving the code and
+# packaging still work. Nothing builds on an ordinary push: only a version tag does (release.yml).
+# Mirrors Konjugate core's crossPlatform.yml/release.yml split: this is the
 # crossPlatform.yml role (build + test, no signing, no publish); release.yml is the tag-triggered
 # signed-release counterpart to core's release.yml. Building here needs no C++ compilation today
 # (packages/engine/plugin.json contributes only JSON component templates and example .kjt files,
@@ -14,9 +15,6 @@ name: Build
 # per-platform build/strip pipeline for it -- see the "Compiled/stripped native plugin
 # distribution" line in the ReadMe's Roadmap, which this workflow does not yet cover.
 on:
-    push:
-        branches: [main]
-    pull_request:
     workflow_dispatch:
 
 jobs:
@@ -53,7 +51,7 @@ jobs:
               working-directory: konjugate-fintech
               run: npm run build
             # Deliberately unsigned: signing is release.yml's job, gated to an actual version tag,
-            # not something every push/PR build should do (see docs/registry.md in core -- an
+            # not something this verification build should do (see docs/registry.md in core -- an
             # unsigned package here is no different from one built any other way, so there's
             # nothing this verification build loses by skipping it).
             - name: Package the build output as one zip
