@@ -1,6 +1,7 @@
 {
   "name": "konjugate-fintech",
   "version": "1.1.1",
+  "minimumKonjugateVersion": "1.1.15",
   "private": true,
   "type": "module",
   "description": "Fintech toolbox for Konjugate.",
