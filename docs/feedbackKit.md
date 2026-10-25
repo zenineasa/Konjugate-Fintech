@@ -1,3 +1,12 @@
+---
+type: Guide
+title: Practitioner feedback kit
+description: How to run a feedback conversation with a risk or treasury practitioner about the Start window's data format, scenarios and numbers.
+tags: [feedback, fintech-start, user-research]
+status: stable
+implementation: not-applicable
+---
+
 # Practitioner feedback kit
 
 For the person running the conversation. The goal is not to sell: it is to learn whether the Start window's data format, scenarios and numbers match how a risk or treasury team actually works, and what would stop them using it.

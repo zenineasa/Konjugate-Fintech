@@ -1,3 +1,13 @@
+---
+type: Model Guide
+title: DeFi liquidation cascade
+description: Walkthrough of the defiLiquidationCascade reference model, an AMM pool, arbitrageur, liquidator and three lending vaults.
+resource: ../models/defiLiquidationCascade.kjt
+tags: [defi, amm, liquidation, reference-model]
+status: stable
+implementation: built
+---
+
 # DeFi liquidation cascade
 
 ## Overview

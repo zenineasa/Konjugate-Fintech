@@ -1,3 +1,12 @@
+---
+type: Design Note
+title: Live market data, rolling causal analysis and simulating ahead
+description: Plan and outcome for the Markets window, which infers causal links from live series and simulates shocks forward.
+tags: [markets, causal-inference, forecasting]
+status: stable
+implementation: built
+---
+
 # Idea: live market data, rolling causal analysis and simulating ahead
 
 Status: a first version is built as the Markets window (`packages/markets`), separate from the Start window, with its own toolbar button. It reads price and rate files or fetches them from Yahoo Finance, FRED and Stooq, finds links over rolling windows, builds a model from the links you keep, runs a what-if from the latest bar, and can reload and rebuild on demand or on a timer while the window is open. What follows was the plan; "What was built and what real data showed" at the end records how it turned out.

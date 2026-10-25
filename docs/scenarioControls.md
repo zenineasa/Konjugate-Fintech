@@ -1,3 +1,12 @@
+---
+type: Design Note
+title: User-controllable scenarios in Fintech Start
+description: Plan and record for letting users set stress parameters and see which assumptions drive a result.
+tags: [fintech-start, scenarios, sensitivity]
+status: stable
+implementation: built
+---
+
 # User-controllable scenarios in Fintech Start: what we build
 
 Status: built. The plan is kept as it was written, with the corrections and the record of what was built at the end ("What was built, and what changed on the way"). This is the plan for giving users real control over what is stressed and how hard, and for showing which assumptions drive a result. It came from a reviewer's concern that the four scenarios are fixed and the only input is which institution to stress, and from read-only checks on the sample data. Everything below is in scope.

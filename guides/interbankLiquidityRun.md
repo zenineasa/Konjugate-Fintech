@@ -1,3 +1,13 @@
+---
+type: Model Guide
+title: Interbank liquidity run
+description: Walkthrough of the interbankLiquidityRun reference model, three banks with a depositor run, fire sales and a default cascade.
+resource: ../models/interbankLiquidityRun.kjt
+tags: [banking, contagion, reference-model]
+status: stable
+implementation: built
+---
+
 # Interbank liquidity run
 
 ## Overview
